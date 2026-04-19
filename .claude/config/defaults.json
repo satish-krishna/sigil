@@ -1,0 +1,7 @@
+{
+  "ticketFormat": "github-issue",
+  "github": {
+    "labels": ["bob", "auto-fix"],
+    "assignToAuthor": false
+  }
+}

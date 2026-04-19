@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "apps/backend/Siora.Api"],
+      "port": 5000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/Repos/Siora/node_modules/nx/bin/nx.js", "serve", "frontend", "--verbose"],
+      "port": 4200
+    }
+  ]
+}

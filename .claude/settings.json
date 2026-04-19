@@ -1,0 +1,50 @@
+{
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "chrome-devtools@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun '.claude/hooks/session-start.ts'",
+            "async": false
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8')); const f=d.tool_input?.file_path; if(f && /\\.(ts|html|scss|json|cs)$/.test(f)) require('child_process').spawnSync('npx',['prettier','--write',f],{stdio:'inherit'})\"",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8')); const f=d.tool_input?.file_path||''; if(/\\.env|\\.Development\\.json/.test(f)){console.error('Blocked: sensitive file '+f);process.exit(2)}\"",
+            "async": false
+          }
+        ]
+      }
+    ]
+  }
+}
