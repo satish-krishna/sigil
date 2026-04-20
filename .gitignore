@@ -10,5 +10,4 @@ obj/
 /docs/decks/node_modules
 
 # Rendered marp output (regenerate from .md source)
-/docs/*.html
 /docs/decks/*.html
