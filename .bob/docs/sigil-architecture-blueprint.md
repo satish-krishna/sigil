@@ -1,6 +1,6 @@
 # Sigil — Architecture Blueprint
 
-> *A mark of power and binding.* A hardened Agent OS for resilient, secure, and observable AI orchestration.
+> *A mark of power and binding.* Agent OS for resilient, secure, and observable AI orchestration.
 
 ---
 

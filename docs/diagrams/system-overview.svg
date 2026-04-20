@@ -1,0 +1,282 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 920" font-family="Calibri, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5F7FF"/>
+      <stop offset="1" stop-color="#E7ECFA"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1E2761" flood-opacity="0.15"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1E2761"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F9B87A"/>
+    </marker>
+    <marker id="arrow-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F96167"/>
+    </marker>
+  </defs>
+
+  <rect width="1440" height="920" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <rect x="40" y="32" width="8" height="28" fill="#F9B87A"/>
+  <text x="60" y="56" font-family="Georgia" font-size="28" font-weight="bold" fill="#1E2761">Sigil — System Overview</text>
+  <text x="60" y="80" font-size="14" fill="#6B7394" font-style="italic">State-synchronized kernel · zero-trust agents · snapshot &amp; delta</text>
+
+  <!-- ============ FRONTEND ============ -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="120" width="300" height="580" rx="12" fill="#3B4BA3"/>
+  </g>
+  <rect x="40" y="120" width="300" height="46" rx="12" fill="#2D3B85"/>
+  <rect x="40" y="154" width="300" height="12" fill="#2D3B85"/>
+  <text x="60" y="150" font-family="Georgia" font-size="18" font-weight="bold" fill="#F9B87A">Angular Frontend</text>
+
+  <g font-size="13" fill="#F5F7FF">
+    <g transform="translate(60,200)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#2D3B85"/>
+      <rect x="0" y="0" width="4" height="56" fill="#F9B87A"/>
+      <text x="16" y="22" font-weight="bold">Dashboard</text>
+      <text x="16" y="42" font-size="11" fill="#CADCFC">Active jobs · agent health · cost</text>
+    </g>
+    <g transform="translate(60,270)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#2D3B85"/>
+      <rect x="0" y="0" width="4" height="56" fill="#F9B87A"/>
+      <text x="16" y="22" font-weight="bold">Agent Catalog</text>
+      <text x="16" y="42" font-size="11" fill="#CADCFC">Capabilities · tier · routing weight</text>
+    </g>
+    <g transform="translate(60,340)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#2D3B85"/>
+      <rect x="0" y="0" width="4" height="56" fill="#F9B87A"/>
+      <text x="16" y="22" font-weight="bold">Job Monitor</text>
+      <text x="16" y="42" font-size="11" fill="#CADCFC">Trace waterfall · delta inspector</text>
+    </g>
+    <g transform="translate(60,410)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#F96167"/>
+      <rect x="0" y="0" width="4" height="56" fill="#FFFFFF"/>
+      <text x="16" y="22" font-weight="bold">Checkpoint Queue</text>
+      <text x="16" y="42" font-size="11" fill="#FDECED">Human approval for writes</text>
+    </g>
+    <g transform="translate(60,480)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#2D3B85"/>
+      <rect x="0" y="0" width="4" height="56" fill="#F9B87A"/>
+      <text x="16" y="22" font-weight="bold">Intent Console</text>
+      <text x="16" y="42" font-size="11" fill="#CADCFC">Submit and watch execution live</text>
+    </g>
+    <g transform="translate(60,550)">
+      <rect x="0" y="0" width="260" height="56" rx="6" fill="#2D3B85"/>
+      <rect x="0" y="0" width="4" height="56" fill="#F9B87A"/>
+      <text x="16" y="22" font-weight="bold">Audit Explorer</text>
+      <text x="16" y="42" font-size="11" fill="#CADCFC">Immutable change history</text>
+    </g>
+  </g>
+
+  <text x="60" y="680" font-size="11" fill="#CADCFC" font-style="italic">Standalone components · Signals · SpartanNG · Tailwind · SignalR</text>
+
+  <!-- ============ KERNEL ============ -->
+  <g filter="url(#shadow)">
+    <rect x="400" y="120" width="620" height="660" rx="12" fill="#1E2761"/>
+  </g>
+  <rect x="400" y="120" width="620" height="46" rx="12" fill="#141B4A"/>
+  <rect x="400" y="154" width="620" height="12" fill="#141B4A"/>
+  <text x="420" y="150" font-family="Georgia" font-size="18" font-weight="bold" fill="#F9B87A">Sigil Kernel · .NET 9 · FastEndpoints</text>
+
+  <!-- Core Services row -->
+  <text x="420" y="200" font-size="11" fill="#CADCFC" letter-spacing="2">CORE SERVICES</text>
+  <g font-size="13" fill="#F5F7FF">
+    <g transform="translate(420,212)">
+      <rect x="0" y="0" width="186" height="90" rx="8" fill="#141B4A"/>
+      <rect x="0" y="0" width="186" height="4" fill="#F9B87A"/>
+      <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Registry</text>
+      <text x="14" y="48" font-size="11" fill="#CADCFC">Versions · weights</text>
+      <text x="14" y="64" font-size="11" fill="#CADCFC">Security profiles</text>
+      <text x="14" y="80" font-size="11" fill="#CADCFC">Heartbeats</text>
+    </g>
+    <g transform="translate(617,212)">
+      <rect x="0" y="0" width="186" height="90" rx="8" fill="#141B4A"/>
+      <rect x="0" y="0" width="186" height="4" fill="#F9B87A"/>
+      <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Orchestrator</text>
+      <text x="14" y="48" font-size="11" fill="#CADCFC">IPlanner (Det/LLM/Hybrid)</text>
+      <text x="14" y="64" font-size="11" fill="#CADCFC">Snapshot Engine</text>
+      <text x="14" y="80" font-size="11" fill="#CADCFC">IChatClient (MS.Extensions.AI)</text>
+    </g>
+    <g transform="translate(814,212)">
+      <rect x="0" y="0" width="186" height="90" rx="8" fill="#141B4A"/>
+      <rect x="0" y="0" width="186" height="4" fill="#F9B87A"/>
+      <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Policy Engine</text>
+      <text x="14" y="48" font-size="11" fill="#CADCFC">Token budget · tool access</text>
+      <text x="14" y="64" font-size="11" fill="#CADCFC">PII masking</text>
+      <text x="14" y="80" font-size="11" fill="#CADCFC">Checkpoints (writes)</text>
+    </g>
+  </g>
+
+  <!-- Security + Gateway -->
+  <text x="420" y="334" font-size="11" fill="#CADCFC" letter-spacing="2">SECURITY</text>
+  <g font-size="13" fill="#F5F7FF">
+    <g transform="translate(420,346)">
+      <rect x="0" y="0" width="280" height="90" rx="8" fill="#141B4A"/>
+      <rect x="0" y="0" width="4" height="90" fill="#F9B87A"/>
+      <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Security Layer</text>
+      <text x="14" y="50" font-size="11" fill="#CADCFC">JWT issuer · mTLS validator</text>
+      <text x="14" y="68" font-size="11" fill="#CADCFC">Sigil-Key registry</text>
+      <text x="14" y="84" font-size="11" fill="#CADCFC">Open · Standard · Trusted tiers</text>
+    </g>
+    <g transform="translate(710,346)">
+      <rect x="0" y="0" width="290" height="90" rx="8" fill="#141B4A"/>
+      <rect x="0" y="0" width="4" height="90" fill="#F9B87A"/>
+      <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Secure Gateway</text>
+      <text x="14" y="50" font-size="11" fill="#CADCFC">JWT-signed dispatch</text>
+      <text x="14" y="68" font-size="11" fill="#CADCFC">Polly — timeout · retry · breaker</text>
+      <text x="14" y="84" font-size="11" fill="#CADCFC">OTel spans per call</text>
+    </g>
+  </g>
+
+  <!-- Storage -->
+  <text x="420" y="468" font-size="11" fill="#CADCFC" letter-spacing="2">ISIGILSTORE</text>
+  <g font-size="13" fill="#F5F7FF">
+    <g transform="translate(420,480)">
+      <rect x="0" y="0" width="135" height="90" rx="8" fill="#0F1530"/>
+      <text x="12" y="24" font-family="Georgia" font-weight="bold" font-size="13" fill="#F5F7FF">Context Bus</text>
+      <text x="12" y="44" font-size="10" fill="#CADCFC">ETag tracking</text>
+      <text x="12" y="60" font-size="10" fill="#CADCFC">Snapshot/Delta</text>
+      <text x="12" y="78" font-size="10" fill="#CADCFC">Optimistic commit</text>
+    </g>
+    <g transform="translate(565,480)">
+      <rect x="0" y="0" width="135" height="90" rx="8" fill="#0F1530"/>
+      <text x="12" y="24" font-family="Georgia" font-weight="bold" font-size="13" fill="#F5F7FF">Job Store</text>
+      <text x="12" y="44" font-size="10" fill="#CADCFC">Status · steps</text>
+      <text x="12" y="60" font-size="10" fill="#CADCFC">Plan source</text>
+      <text x="12" y="78" font-size="10" fill="#CADCFC">Results</text>
+    </g>
+    <g transform="translate(710,480)">
+      <rect x="0" y="0" width="135" height="90" rx="8" fill="#0F1530"/>
+      <text x="12" y="24" font-family="Georgia" font-weight="bold" font-size="13" fill="#F5F7FF">Checkpoints</text>
+      <text x="12" y="44" font-size="10" fill="#CADCFC">Pause / resume</text>
+      <text x="12" y="60" font-size="10" fill="#CADCFC">Approvals</text>
+      <text x="12" y="78" font-size="10" fill="#CADCFC">SignalR events</text>
+    </g>
+    <g transform="translate(855,480)">
+      <rect x="0" y="0" width="145" height="90" rx="8" fill="#0F1530"/>
+      <rect x="0" y="0" width="4" height="90" fill="#F96167"/>
+      <text x="12" y="24" font-family="Georgia" font-weight="bold" font-size="13" fill="#F96167">IAuditStore</text>
+      <text x="12" y="44" font-size="10" fill="#CADCFC">Immutable</text>
+      <text x="12" y="60" font-size="10" fill="#CADCFC">Every delta</text>
+      <text x="12" y="78" font-size="10" fill="#CADCFC">Who · what · when</text>
+    </g>
+  </g>
+
+  <!-- Providers -->
+  <text x="420" y="600" font-size="11" fill="#CADCFC" letter-spacing="2">PROVIDERS</text>
+  <g font-size="12" fill="#F5F7FF">
+    <g transform="translate(420,612)">
+      <rect x="0" y="0" width="280" height="60" rx="8" fill="none" stroke="#3B4BA3" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <text x="14" y="24" font-family="Consolas, monospace" font-weight="bold" fill="#F9B87A">Sigil.Storage.Mongo</text>
+      <text x="14" y="44" font-size="10" fill="#CADCFC">MongoSigilStore · MongoAuditStore</text>
+    </g>
+    <g transform="translate(710,612)">
+      <rect x="0" y="0" width="290" height="60" rx="8" fill="none" stroke="#3B4BA3" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <text x="14" y="24" font-family="Consolas, monospace" font-weight="bold" fill="#F9B87A">Sigil.Storage.EfCore</text>
+      <text x="14" y="44" font-size="10" fill="#CADCFC">EfSigilStore · SigilDbContext · Migrations</text>
+    </g>
+  </g>
+
+  <text x="420" y="698" font-size="11" fill="#CADCFC" font-style="italic">Health Monitor (BackgroundService) · OpenTelemetry across every span</text>
+
+  <!-- ============ REMOTE AGENTS ============ -->
+  <g filter="url(#shadow)">
+    <rect x="1080" y="120" width="320" height="660" rx="12" fill="#0F1530"/>
+  </g>
+  <rect x="1080" y="120" width="320" height="46" rx="12" fill="#060A1E"/>
+  <rect x="1080" y="154" width="320" height="12" fill="#060A1E"/>
+  <text x="1100" y="150" font-family="Georgia" font-size="18" font-weight="bold" fill="#F9B87A">Remote Agent Containers</text>
+
+  <!-- Agent A -->
+  <g transform="translate(1100,200)">
+    <rect x="0" y="0" width="280" height="250" rx="8" fill="#141B4A"/>
+    <rect x="0" y="0" width="280" height="4" fill="#F9B87A"/>
+    <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Agent A · Research</text>
+    <text x="14" y="48" font-size="10" fill="#CADCFC" letter-spacing="1">mTLS + JWT · PII-cleared</text>
+
+    <g transform="translate(14,62)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#F9B87A">Sigil Agent SDK</text>
+    </g>
+    <g transform="translate(14,106)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#CADCFC">MS Agent Framework</text>
+    </g>
+    <g transform="translate(14,150)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#CADCFC">Tools / APIs / MCP</text>
+    </g>
+    <text x="14" y="218" font-size="10" fill="#CADCFC">POST /sigil/validate  ·  /sigil/execute</text>
+    <text x="14" y="234" font-size="10" fill="#CADCFC">GET  /sigil/health    ·  /sigil/info</text>
+  </g>
+
+  <!-- Agent B -->
+  <g transform="translate(1100,470)">
+    <rect x="0" y="0" width="280" height="250" rx="8" fill="#141B4A"/>
+    <rect x="0" y="0" width="280" height="4" fill="#F9B87A"/>
+    <text x="14" y="28" font-family="Georgia" font-weight="bold" font-size="15" fill="#F5F7FF">Agent B · Weather</text>
+    <text x="14" y="48" font-size="10" fill="#CADCFC" letter-spacing="1">Sigil-Key + JWT · standard</text>
+
+    <g transform="translate(14,62)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#F9B87A">Sigil Agent SDK</text>
+    </g>
+    <g transform="translate(14,106)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#CADCFC">MS Agent Framework</text>
+    </g>
+    <g transform="translate(14,150)">
+      <rect x="0" y="0" width="252" height="36" rx="5" fill="#0F1530"/>
+      <text x="12" y="22" font-family="Consolas, monospace" font-size="11" fill="#CADCFC">Tools / APIs / MCP</text>
+    </g>
+    <text x="14" y="218" font-size="10" fill="#CADCFC">Self-registers via SDK</text>
+    <text x="14" y="234" font-size="10" fill="#CADCFC">Heartbeat every 15s · JWT refresh</text>
+  </g>
+
+  <!-- ============ CONNECTORS ============ -->
+  <!-- Frontend <-> Kernel -->
+  <line x1="340" y1="430" x2="400" y2="430" stroke="#1E2761" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="350" y="420" font-size="10" fill="#1E2761" font-style="italic">SignalR / REST</text>
+
+  <!-- Kernel -> Agent A: Snapshot -->
+  <line x1="1020" y1="320" x2="1100" y2="320" stroke="#F9B87A" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <text x="1024" y="310" font-size="10" fill="#1E2761" font-style="italic" font-weight="bold">Snapshot (mTLS+JWT)</text>
+
+  <!-- Agent A -> Kernel: Delta -->
+  <line x1="1100" y1="345" x2="1020" y2="345" stroke="#F96167" stroke-width="2" marker-end="url(#arrow-coral)"/>
+  <text x="1024" y="360" font-size="10" fill="#F96167" font-style="italic" font-weight="bold">Delta (signed)</text>
+
+  <!-- Kernel -> Agent B: Snapshot -->
+  <line x1="1020" y1="580" x2="1100" y2="580" stroke="#F9B87A" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <text x="1024" y="570" font-size="10" fill="#1E2761" font-style="italic" font-weight="bold">Snapshot (Sigil-Key)</text>
+
+  <!-- Agent B -> Kernel: Delta -->
+  <line x1="1100" y1="605" x2="1020" y2="605" stroke="#F96167" stroke-width="2" marker-end="url(#arrow-coral)"/>
+  <text x="1024" y="620" font-size="10" fill="#F96167" font-style="italic" font-weight="bold">Delta (signed)</text>
+
+  <!-- ============ FOOTER PRINCIPLES ============ -->
+  <g transform="translate(40,810)">
+    <rect x="0" y="0" width="1360" height="80" rx="10" fill="#FFFFFF" stroke="#D8DEF2"/>
+    <rect x="0" y="0" width="8" height="80" fill="#F9B87A"/>
+
+    <g transform="translate(28,18)" font-size="11">
+      <text font-family="Georgia" font-weight="bold" font-size="13" fill="#1E2761">Non-negotiable principles</text>
+      <g transform="translate(0,20)">
+        <text x="0" y="12" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">1.</tspan> Agents are out-of-process — kernel never hosts agent logic</text>
+        <text x="0" y="32" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">2.</tspan> Snapshot pushed, delta returned — zero callbacks from agents to kernel</text>
+      </g>
+      <g transform="translate(460,20)">
+        <text x="0" y="12" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">3.</tspan> Optimistic concurrency via ETag — never a distributed lock</text>
+        <text x="0" y="32" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">4.</tspan> Pre-flight validation before every dispatch</text>
+      </g>
+      <g transform="translate(920,20)">
+        <text x="0" y="12" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">5.</tspan> Immutable audit on every delta commit</text>
+        <text x="0" y="32" fill="#2A2F4A"><tspan font-weight="bold" fill="#1E2761">6.</tspan> Checkpoints for writes — human-in-the-loop</text>
+      </g>
+    </g>
+  </g>
+</svg>

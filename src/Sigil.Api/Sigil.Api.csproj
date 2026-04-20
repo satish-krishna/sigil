@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="FastEndpoints" Version="8.1.0" />
+    <PackageReference Include="FastEndpoints.Swagger" Version="8.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sigil.Runtime\Sigil.Runtime.csproj" />
+    <ProjectReference Include="..\Sigil.Storage.Mongo\Sigil.Storage.Mongo.csproj" />
+    <ProjectReference Include="..\Sigil.Storage.EfCore\Sigil.Storage.EfCore.csproj" />
+  </ItemGroup>
+
+</Project>

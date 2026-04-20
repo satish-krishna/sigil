@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+*.user
+
+# IDE
+.vs/
+.idea/
+*.suo
+/docs/decks/node_modules
+
+# Rendered marp output (regenerate from .md source)
+/docs/decks/*.html
