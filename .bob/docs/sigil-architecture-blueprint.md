@@ -241,7 +241,7 @@ Agents must present a **Sigil-Key** or use **mTLS** to register. The registry su
 ```csharp
 public record AgentRegistration
 {
-    public string AgentId { get; init; } = default!;
+    public AgentId AgentId { get; init; }
     public string Name { get; init; } = default!;
     public string Domain { get; init; } = default!;
     public List<Capability> Capabilities { get; init; } = [];
@@ -308,17 +308,15 @@ stateDiagram-v2
 **Key interface:**
 
 ```csharp
-public interface IAgentRegistry
+public interface IAgentRegistrationStore
 {
-    Task<AgentRegistration> RegisterAsync(AgentRegistration registration);
-    Task DeregisterAsync(string agentId);
-    Task<AgentRegistration?> GetAsync(string agentId);
-    Task<IReadOnlyList<AgentRegistration>> GetAllAsync();
-    Task<IReadOnlyList<AgentRegistration>> FindByCapabilityAsync(string capabilityName);
-    Task<IReadOnlyList<AgentRegistration>> FindByDomainAsync(string domain);
-    Task<AgentRegistration?> SelectByWeightAsync(string capabilityName);
-    Task UpdateHeartbeatAsync(string agentId);
-    Task UpdateStatusAsync(string agentId, AgentStatus status);
+    Task<Result> RegisterAsync(AgentRegistration registration, CancellationToken ct = default);
+    Task<Maybe<AgentRegistration>> GetAsync(AgentId agentId, CancellationToken ct = default);
+    Task<IReadOnlyList<AgentRegistration>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<AgentRegistration>> FindByCapabilityAsync(string capabilityName, CancellationToken ct = default);
+    Task<IReadOnlyList<AgentRegistration>> FindByDomainAsync(string domain, CancellationToken ct = default);
+    Task<Result> UpdateHeartbeatAsync(AgentId agentId, CancellationToken ct = default);
+    Task<Result> UpdateStatusAsync(AgentId agentId, AgentStatus status, CancellationToken ct = default);
 }
 ```
 
@@ -696,25 +694,27 @@ The Context Bus uses **Optimistic Concurrency** to prevent race conditions when 
 public interface IContextStore
 {
     /// Returns the full snapshot + its current ETag
-    Task<(ContextSnapshot Snapshot, string ETag)> GetSnapshotAsync(string jobId);
+    Task<Result<(ContextSnapshot Snapshot, ETag ETag)>> GetSnapshotAsync(
+        JobId jobId, CancellationToken ct = default);
 
-    /// Commits a delta atomically. Fails if ETag has changed since snapshot was taken.
-    Task<bool> CommitDeltaAsync(string jobId, ContextDelta delta, string expectedETag);
+    /// Commits a delta atomically. Fails with "etag-mismatch" if ETag changed.
+    Task<Result> CommitDeltaAsync(
+        JobId jobId, ContextDelta delta, ETag expectedETag, CancellationToken ct = default);
 
     /// Append to the interaction log
-    Task AppendLogAsync(string jobId, AgentLogEntry entry);
+    Task AppendLogAsync(JobId jobId, AgentLogEntry entry, CancellationToken ct = default);
 
     /// Get full interaction history
-    Task<IReadOnlyList<AgentLogEntry>> GetLogAsync(string jobId);
+    Task<IReadOnlyList<AgentLogEntry>> GetLogAsync(JobId jobId, CancellationToken ct = default);
 }
 
 public record ContextSnapshot
 {
-    public string JobId { get; init; } = default!;
-    public Dictionary<string, object> State { get; init; } = new();
+    public JobId JobId { get; init; }
+    public IReadOnlyDictionary<string, object> State { get; init; } = new Dictionary<string, object>();
 
-    public T? Get<T>(string key) =>
-        State.TryGetValue(key, out var val) && val is T typed ? typed : default;
+    public Maybe<T> Get<T>(string key) =>
+        State.TryGetValue(key, out var val) && val is T typed ? Maybe.From(typed) : Maybe<T>.None;
 }
 
 public record ContextDelta
@@ -900,18 +900,18 @@ Every context change is recorded immutably. This provides a complete history of 
 ```csharp
 public interface IAuditStore
 {
-    Task LogChangeAsync(AuditEntry entry);
-    Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(string jobId);
-    Task<IReadOnlyList<AuditEntry>> GetAgentHistoryAsync(string agentId);
+    Task LogChangeAsync(AuditEntry entry, CancellationToken ct = default);
+    Task<IReadOnlyList<AuditEntry>> GetHistoryAsync(JobId jobId, CancellationToken ct = default);
+    Task<IReadOnlyList<AuditEntry>> GetAgentHistoryAsync(AgentId agentId, CancellationToken ct = default);
 }
 
 public record AuditEntry
 {
     public string AuditId { get; init; } = Guid.NewGuid().ToString("N");
-    public string JobId { get; init; } = default!;
-    public string AgentId { get; init; } = default!;
-    public string StepId { get; init; } = default!;
-    public ContextDelta Delta { get; init; } = default!;
+    public JobId JobId { get; init; }
+    public AgentId AgentId { get; init; }
+    public StepId StepId { get; init; }
+    public ContextDelta Delta { get; init; } = new();
     public UsageMetrics Metrics { get; init; } = new();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
