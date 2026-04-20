@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Sigil** — a hardened Agent OS. A .NET kernel that manages, orchestrates, and observes remote domain-specific AI agents running as out-of-process containers. Sigil is *not* an agent framework — it sits above Microsoft Agent Framework and provides the OS-level services (state, security, policy, observability) that individual agents shouldn't build themselves.
 
-> **Status:** Phase 0 — implementation has not started. The canonical design is `.bob/docs/sigil-architecture-blueprint.md`. Read that before writing code; everything else in this file is orientation.
+> **Status:** Phase 1 in progress. Solution is scaffolded (7 projects, `sigil.sln`, `Directory.Build.props`) and builds clean; domain code has not yet landed. The canonical design is `.bob/docs/sigil-architecture-blueprint.md` — read that before writing code. `README.md` has the current Phase 1 checklist; everything else here is orientation.
 
 ---
 
@@ -39,31 +39,29 @@ Read the blueprint before touching any of these. They are load-bearing.
 
 ---
 
-## Project layout (planned — see blueprint §7.2)
+## Project layout (see blueprint §7.2)
 
 ```
 src/
-  Sigil.Core/                 # Zero-dependency contracts: protocol, stores, policy, planner
-  Sigil.Agent.SDK/            # NuGet for agent authors — register/heartbeat/validate/snapshot-delta
-  Sigil.Storage.Mongo/        # MongoSigilStore + MongoAuditStore
-  Sigil.Storage.EfCore/       # EfSigilStore + migrations
-  Sigil.Infrastructure/       # Gateway, JWT/mTLS, observability primitives
-  Sigil.Runtime/              # Registry, Orchestrator, SnapshotEngine, Planners, Policies
-  Sigil.Api/                  # FastEndpoints + SignalR hubs
-  agents/                     # Sample agents (Echo, Weather, …) using the SDK
-  sigil-ui/                   # Angular dashboard
+  Sigil.Core/                 # [scaffolded] Zero-dependency contracts: protocol, stores, policy, planner
+  Sigil.Agent.SDK/            # [scaffolded] NuGet for agent authors — register/heartbeat/validate/snapshot-delta
+  Sigil.Storage.Mongo/        # [scaffolded] MongoSigilStore + MongoAuditStore
+  Sigil.Storage.EfCore/       # [scaffolded] EfSigilStore + migrations
+  Sigil.Infrastructure/       # [scaffolded] Gateway, JWT/mTLS, observability primitives
+  Sigil.Runtime/              # [scaffolded] Registry, Orchestrator, SnapshotEngine, Planners, Policies
+  Sigil.Api/                  # [scaffolded] FastEndpoints + SignalR hubs
+  agents/                     # [planned]    Sample agents (Echo, Weather, …) using the SDK
+  sigil-ui/                   # [planned]    Angular dashboard
 ```
 
 ---
 
 ## Commands
 
-The solution does not exist yet. As projects land, these are the expected workflows.
-
 ```bash
 # Backend
-dotnet build
-dotnet test
+dotnet build sigil.sln
+dotnet test sigil.sln
 dotnet run --project src/Sigil.Api
 
 # Frontend (once sigil-ui lands)
@@ -83,16 +81,26 @@ dotnet ef database update --project src/Sigil.Storage.EfCore
 
 ---
 
+## Documentation
+
+- **Blueprint** (canonical design): `.bob/docs/sigil-architecture-blueprint.md`
+- **README**: repo-root overview + Phase 1 checklist
+- **Decks**: `docs/decks/sigil-architecture.pptx` (pptxgenjs build script alongside); Marp source at `docs/decks/sigil-architecture.md`
+- **Diagrams**: `docs/diagrams/system-overview.svg`, `docs/diagrams/sigil.png`
+- **Plans & patterns**: `.bob/plans/` for pre-implementation plans; `.bob/patterns/` for codified patterns once real code lands
+
+---
+
 ## Claude Code setup
 
-Infrastructure was seeded from the Siora project. Key pieces:
+Key pieces (some infrastructure was seeded from an unrelated Angular/Supabase project and needs review before use on Sigil — flagged below):
 
 - **`.claude/settings.json`** — SessionStart hook loads the *Bob the Skull* persona; PostToolUse runs Prettier on edited `.ts/.html/.scss/.json/.cs`; PreToolUse blocks edits to `.env*` and `*.Development.json`.
 - **`.claude/plugins/bob/`** — the `bob` plugin (persona + slash commands).
 - **`.claude/commands/bob/`** — `/bob:code-review`, `/bob:fix`, `/bob:raise`, `/bob:approve`, `/bob:reject`, `/bob:simplify`, `/bob:enhance`, `/bob:audit`, `/bob:report`, `/bob:config`.
-- **`.claude/agents/`** — `chotu` (engineer), `sirji` (tech lead), `code-reviewer`, `quality-fixer`, `security-reviewer`. **These were authored for the Siora stack (Supabase/NX/RxJS rules) and need rewriting for Sigil before direct use.**
-- **`.claude/skills/`** — generic quality skills (`code-simplifier`, `tech-debt-analyzer`, `test-gap-filler`, `quality-orchestrator`, `enhancement-finder`, `auto-fixer`) are reusable. Skills named `authentication`, `capacitor`, `components`, `database`, `fastendpoints`, `forms`, `logging`, `resource-api`, `signals`, `siora-prototype`, `testing`, `frontend-design` are Siora-specific — evaluate before using.
-- **`.mcp.json`** — only `playwright` is retained. Siora's `nx-mcp` and `supabase` MCP servers do not apply here.
+- **`.claude/agents/`** — `chotu` (engineer), `sirji` (tech lead), `code-reviewer`, `quality-fixer`, `security-reviewer`. **Needs review:** these were authored against an Angular/Supabase/NX/RxJS stack and must be rewritten for the .NET 9 kernel + Microsoft Agent Framework context before direct use.
+- **`.claude/skills/`** — generic quality skills (`code-simplifier`, `tech-debt-analyzer`, `test-gap-filler`, `quality-orchestrator`, `enhancement-finder`, `auto-fixer`) are reusable. **Out of scope for this repo:** `authentication`, `capacitor`, `components`, `database`, `fastendpoints`, `forms`, `logging`, `resource-api`, `signals`, `siora-prototype`, `testing`, `frontend-design` — these target an Angular/Supabase stack; evaluate before using and consider removing.
+- **`.mcp.json`** — only `playwright` is retained.
 
 ---
 
