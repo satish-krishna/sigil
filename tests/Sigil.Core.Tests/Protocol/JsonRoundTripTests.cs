@@ -105,4 +105,13 @@ public class JsonRoundTripTests
         back.Metrics.PromptTokens.Should().Be(5);
         back.Timestamp.Should().Be(original.Timestamp);
     }
+
+    [Fact]
+    public void IdentityTypes_RejectJsonNull()
+    {
+        var action = () => JsonSerializer.Deserialize<AgentId>("null", Options);
+
+        action.Should().Throw<JsonException>()
+            .WithMessage("*null*AgentId*");
+    }
 }
