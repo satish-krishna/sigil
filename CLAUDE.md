@@ -99,7 +99,7 @@ Key pieces (some infrastructure was seeded from an unrelated Angular/Supabase pr
 - **`.claude/plugins/bob/`** — the `bob` plugin (persona + slash commands).
 - **`.claude/commands/bob/`** — `/bob:code-review`, `/bob:fix`, `/bob:raise`, `/bob:approve`, `/bob:reject`, `/bob:simplify`, `/bob:enhance`, `/bob:audit`, `/bob:report`, `/bob:config`.
 - **`.claude/agents/`** — `chotu` (engineer), `sirji` (tech lead), `code-reviewer`, `quality-fixer`, `security-reviewer`. **Needs review:** these were authored against an Angular/Supabase/NX/RxJS stack and must be rewritten for the .NET 9 kernel + Microsoft Agent Framework context before direct use.
-- **`.claude/skills/`** — generic quality skills (`code-simplifier`, `tech-debt-analyzer`, `test-gap-filler`, `quality-orchestrator`, `enhancement-finder`, `auto-fixer`) are reusable. **Out of scope for this repo:** `authentication`, `capacitor`, `components`, `database`, `fastendpoints`, `forms`, `logging`, `resource-api`, `signals`, `siora-prototype`, `testing`, `frontend-design` — these target an Angular/Supabase stack; evaluate before using and consider removing.
+- **`.claude/skills/`** — generic quality skills (`code-simplifier`, `tech-debt-analyzer`, `test-gap-filler`, `quality-orchestrator`, `enhancement-finder`, `auto-fixer`) are reusable. **Out of scope for this repo:** `authentication`, `capacitor`, `components`, `database`, `fastendpoints`, `forms`, `logging`, `resource-api`, `signals`, `testing`, `frontend-design` — these target an Angular/Supabase stack; evaluate before using and consider removing.
 - **`.mcp.json`** — only `playwright` is retained.
 
 ---
