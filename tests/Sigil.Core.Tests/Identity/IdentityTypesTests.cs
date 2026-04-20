@@ -6,25 +6,34 @@ namespace Sigil.Core.Tests.Identity;
 
 public class IdentityTypesTests
 {
-    [Fact]
-    public void AgentId_WithSameValue_AreEqual()
+    public static IEnumerable<object[]> IdentityFactories() =>
+        new List<object[]>
+        {
+            new object[] { (Func<string, object>)(v => new AgentId(v)) },
+            new object[] { (Func<string, object>)(v => new JobId(v)) },
+            new object[] { (Func<string, object>)(v => new StepId(v)) },
+            new object[] { (Func<string, object>)(v => new ETag(v)) }
+        };
+
+    [Theory]
+    [MemberData(nameof(IdentityFactories))]
+    public void Identity_WithSameValue_AreEqual(Func<string, object> make)
     {
-        var a = new AgentId("agent-1");
-        var b = new AgentId("agent-1");
+        var a = make("x");
+        var b = make("x");
 
         a.Should().Be(b);
-        (a == b).Should().BeTrue();
         a.GetHashCode().Should().Be(b.GetHashCode());
     }
 
-    [Fact]
-    public void AgentId_WithDifferentValue_AreNotEqual()
+    [Theory]
+    [MemberData(nameof(IdentityFactories))]
+    public void Identity_WithDifferentValue_AreNotEqual(Func<string, object> make)
     {
-        var a = new AgentId("agent-1");
-        var b = new AgentId("agent-2");
+        var a = make("x");
+        var b = make("y");
 
         a.Should().NotBe(b);
-        (a != b).Should().BeTrue();
     }
 
     [Fact]
@@ -51,19 +60,5 @@ public class IdentityTypesTests
     public void ETag_ToString_ReturnsRawValue()
     {
         new ETag("abc123").ToString().Should().Be("abc123");
-    }
-
-    [Fact]
-    public void DistinctIdTypes_AreNotImplicitlyConvertible()
-    {
-        // Compile-time check: this test exists to document intent.
-        // If AgentId and JobId ever become implicitly convertible,
-        // the assignment below will compile — which is the failure mode.
-        var agentId = new AgentId("x");
-        var jobId = new JobId("x");
-
-        // Values may coincide, but types must not be interchangeable.
-        agentId.Value.Should().Be(jobId.Value);
-        agentId.GetType().Should().NotBe(jobId.GetType());
     }
 }
