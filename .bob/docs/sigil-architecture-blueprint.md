@@ -242,11 +242,11 @@ Agents must present a **Sigil-Key** or use **mTLS** to register. The registry su
 public record AgentRegistration
 {
     public AgentId AgentId { get; init; }
-    public string Name { get; init; } = default!;
-    public string Domain { get; init; } = default!;
+    public required string Name { get; init; }
+    public required string Domain { get; init; }
     public List<Capability> Capabilities { get; init; } = [];
     public string SemanticVersion { get; init; } = "1.0.0";
-    public string EndpointUrl { get; init; } = default!;
+    public required string EndpointUrl { get; init; }
     public int RoutingWeight { get; init; } = 100;  // 0-100, for canary builds
     public AgentStatus Status { get; init; } = AgentStatus.Starting;
     public SecurityProfile Security { get; init; } = new();
@@ -257,7 +257,7 @@ public record AgentRegistration
 
 public record Capability
 {
-    public string Name { get; init; } = default!;
+    public required string Name { get; init; }
     public string? Description { get; init; }
     public string[] RequiredTools { get; init; } = [];
     public int? EstimatedMaxTokens { get; init; }
