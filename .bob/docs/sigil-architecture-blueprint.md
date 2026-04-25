@@ -244,7 +244,7 @@ public record AgentRegistration
     public AgentId AgentId { get; init; }
     public required string Name { get; init; }
     public required string Domain { get; init; }
-    public List<Capability> Capabilities { get; init; } = [];
+    public IReadOnlyList<Capability> Capabilities { get; init; } = [];
     public string SemanticVersion { get; init; } = "1.0.0";
     public required string EndpointUrl { get; init; }
     public int RoutingWeight { get; init; } = 100;  // 0-100, for canary builds
@@ -284,7 +284,7 @@ public record AgentMetadata
 {
     public int? MaxTokenBudget { get; init; }
     public string? Model { get; init; }
-    public Dictionary<string, string> Tags { get; init; } = new();
+    public IReadOnlyDictionary<string, string> Tags { get; init; } = new Dictionary<string, string>();
 }
 ```
 

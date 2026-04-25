@@ -107,11 +107,49 @@ public class JsonRoundTripTests
     }
 
     [Fact]
+    public void JobId_RoundTrips()
+    {
+        var original = new JobId("job-1");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<JobId>(json, Options);
+
+        back.Should().Be(original);
+    }
+
+    [Fact]
+    public void StepId_RoundTrips()
+    {
+        var original = new StepId("step-1");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<StepId>(json, Options);
+
+        back.Should().Be(original);
+    }
+
+    [Fact]
+    public void ETag_RoundTrips()
+    {
+        var original = new ETag("etag-abc");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<ETag>(json, Options);
+
+        back.Should().Be(original);
+    }
+
+    [Fact]
     public void IdentityTypes_RejectJsonNull()
     {
-        var action = () => JsonSerializer.Deserialize<AgentId>("null", Options);
+        Action agentId = () => JsonSerializer.Deserialize<AgentId>("null", Options);
+        Action jobId = () => JsonSerializer.Deserialize<JobId>("null", Options);
+        Action stepId = () => JsonSerializer.Deserialize<StepId>("null", Options);
+        Action eTag = () => JsonSerializer.Deserialize<ETag>("null", Options);
 
-        action.Should().Throw<JsonException>()
-            .WithMessage("*null*AgentId*");
+        agentId.Should().Throw<JsonException>().WithMessage("*null*AgentId*");
+        jobId.Should().Throw<JsonException>().WithMessage("*null*JobId*");
+        stepId.Should().Throw<JsonException>().WithMessage("*null*StepId*");
+        eTag.Should().Throw<JsonException>().WithMessage("*null*ETag*");
     }
 }

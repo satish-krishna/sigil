@@ -25,8 +25,10 @@ public class ContextDeltaTests
     }
 
     [Fact]
-    public void DeltasWithSameContent_AreEqualByRecordSemantics()
+    public void DeltasWithSameReferenceInstances_AreEqualByRecordSemantics()
     {
+        // Record equality compares reference-type properties by reference, not by content.
+        // Two records are equal only when they hold the *same* dictionary/array instances.
         var shared = new Dictionary<string, object> { ["k"] = "v" };
         var sharedR = new[] { "r" };
         var c = new ContextDelta { Updates = shared, Removals = sharedR };
