@@ -40,12 +40,8 @@ public class AgentExecutionResultTests
             Metrics = new UsageMetrics { PromptTokens = 10, CompletionTokens = 20 }
         };
 
-        // ContextDelta and UsageMetrics rely on default record equality with reference-typed
-        // collection fields (ContextDelta.Updates / UsageMetrics.Custom), so cross-instance
-        // equality on the wrapper is asserted at the field level.
-        a.Logs.ShouldBe(b.Logs);
-        a.Metrics.PromptTokens.ShouldBe(b.Metrics.PromptTokens);
-        a.Metrics.CompletionTokens.ShouldBe(b.Metrics.CompletionTokens);
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Fact]
