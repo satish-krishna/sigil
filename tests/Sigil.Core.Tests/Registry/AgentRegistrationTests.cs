@@ -101,4 +101,58 @@ public class AgentRegistrationTests
 
         a.ShouldNotBe(b);
     }
+
+    [Fact]
+    public void TwoRegistrations_FromIndependentConstruction_AreEqual()
+    {
+        var a = MakeFull();
+        // Build b independently — same content, fresh collection instances.
+        var b = new AgentRegistration
+        {
+            AgentId = new AgentId("weather-bot"),
+            Name = "Weather Bot",
+            Domain = "weather",
+            EndpointUrl = "https://weather-bot.internal:8443",
+            SemanticVersion = "1.0.0",
+            RoutingWeight = 100,
+            Status = AgentStatus.Healthy,
+            Model = new ModelSpec
+            {
+                Provider = "openai",
+                Model = "gpt-4o-mini",
+                Sampling = new Sampling { Temperature = 0.2, MaxOutputTokens = 800 }
+            },
+            Skills =
+            [
+                new Skill
+                {
+                    Name = "forecast-summary",
+                    Description = "Summarize a forecast.",
+                    RequiredTools = ["get_forecast"],
+                    EstimatedMaxTokens = 400
+                }
+            ],
+            Tools =
+            [
+                new ToolBinding
+                {
+                    Name = "get_forecast",
+                    Kind = ToolKind.Http,
+                    Description = "Fetch a 7-day forecast.",
+                    ParameterSchema = "{\"type\":\"object\"}"
+                }
+            ],
+            MaxTokenBudget = 4000,
+            Security = new SecurityProfile { AllowedTools = ["get_forecast"] },
+            Metadata = new AgentMetadata
+            {
+                Tags = new Dictionary<string, string> { ["team"] = "platform" }
+            },
+            RegisteredAt = new DateTime(2026, 5, 9, 12, 0, 0, DateTimeKind.Utc),
+            LastHeartbeat = new DateTime(2026, 5, 9, 12, 1, 0, DateTimeKind.Utc)
+        };
+
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
+    }
 }

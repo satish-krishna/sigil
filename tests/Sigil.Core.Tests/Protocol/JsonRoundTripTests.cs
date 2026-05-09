@@ -175,11 +175,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<Skill>(json, Options)!;
 
-        back.Name.ShouldBe(original.Name);
-        back.Description.ShouldBe(original.Description);
-        back.RequiredTools.ShouldBe(original.RequiredTools);
-        back.EstimatedMaxTokens.ShouldBe(original.EstimatedMaxTokens);
-        back.Version.ShouldBe(original.Version);
+        back.ShouldBe(original);
     }
 
     [Fact]
@@ -231,10 +227,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<AgentMetadata>(json, Options)!;
 
-        back.Tags.ContainsKey("team").ShouldBeTrue();
-        back.Tags["team"].ShouldBe("platform");
-        back.Tags.ContainsKey("tier").ShouldBeTrue();
-        back.Tags["tier"].ShouldBe("standard");
+        back.ShouldBe(original);
     }
 
     [Fact]
@@ -288,15 +281,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<AgentRegistration>(json, Options)!;
 
-        back.Name.ShouldBe("Weather Bot");
-        back.Skills.Count.ShouldBe(1);
-        back.Skills[0].Name.ShouldBe("forecast-summary");
-        back.Tools.Count.ShouldBe(1);
-        back.Tools[0].Kind.ShouldBe(ToolKind.Http);
-        back.Model.Provider.ShouldBe("openai");
-        back.MaxTokenBudget.ShouldBe(4000);
-        back.Security.AllowedTools.ShouldBe(new[] { "get_forecast" });
-        back.Metadata.Tags.ContainsKey("team").ShouldBeTrue();
+        back.ShouldBe(original);
     }
 
     [Fact]
