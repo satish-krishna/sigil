@@ -1,15 +1,4 @@
 {
-  "enabledPlugins": {
-    "context7@claude-plugins-official": true,
-    "csharp-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "playwright@claude-plugins-official": true,
-    "github@claude-plugins-official": true,
-    "chrome-devtools@claude-plugins-official": true,
-    "playground@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": false
-  },
   "hooks": {
     "SessionStart": [
       {
@@ -46,5 +35,16 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": false,
+    "typescript-lsp@claude-plugins-official": false,
+    "playwright@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": false,
+    "chrome-devtools-mcp@claude-plugins-official": true
   }
 }
