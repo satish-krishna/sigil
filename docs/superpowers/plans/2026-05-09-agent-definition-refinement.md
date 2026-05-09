@@ -2,23 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land the new Agent contracts in `Sigil.Core` (skills become the routable unit; model, tools, and skills become first-class on `AgentRegistration`) and update the architecture blueprint and README to describe the present-tense shape.
+**Goal:** Land the new Agent contracts in `Sigil.Core` (skills become the routable unit; model, tools, and skills become first-class on `AgentRegistration`) and update the architecture blueprint and README to describe the present-tense shape. As an enabling first step, migrate the test project from FluentAssertions to Shouldly so all new and existing tests use the project-standard assertion library.
 
 **Architecture:** TDD per record. Each new type lands as a separate green commit: tests first, observe failure, add the record, observe pass, commit. Refactors to existing records follow the same cycle. Deletions and interface renames are mechanical and verified by `dotnet build` rather than a behavior test (no implementations exist to test against). Documentation lands last.
 
-**Tech Stack:** .NET 9 · xUnit · FluentAssertions 6.x (pinned: 7.x is commercial) · System.Text.Json · CSharpFunctionalExtensions (`Result`, `Maybe<T>`).
+**Tech Stack:** .NET 9 · xUnit · Shouldly · System.Text.Json · CSharpFunctionalExtensions (`Result`, `Maybe<T>`).
 
 **Spec reference:** `docs/superpowers/specs/2026-05-09-agent-definition-refinement-design.md`
 
 **Conventions to follow throughout:**
 - All code, blueprint prose, and README prose describe the present. **Never** add `// formerly X`, `// renamed from`, "previously this was", "now changed to", or any other change-narrative comment or wording. Memory rule: *No before/after framing in code or blueprint.* Commit messages may use imperatives ("add", "drop", "rename") since they are operational labels for the diff.
-- Match existing test style: xUnit `[Fact]`/`[Theory]` + FluentAssertions; one test class per record under `tests/Sigil.Core.Tests/Registry/`; round-trip tests append to `tests/Sigil.Core.Tests/Protocol/JsonRoundTripTests.cs`.
+- Test style: xUnit `[Fact]`/`[Theory]` + **Shouldly** assertions. One test class per record under `tests/Sigil.Core.Tests/Registry/`; round-trip tests append to `tests/Sigil.Core.Tests/Protocol/JsonRoundTripTests.cs`. Memory rule: *Use Shouldly, not FluentAssertions.*
 - Records are `sealed`, use `init`-only setters, use `required` for mandatory fields (per commit `53cbc97`).
 - No JSON converters needed for new POCO records (only the value-wrapping identity types in `Sigil.Core/Identity/` need converters; default System.Text.Json handles the new shapes).
 
 ---
 
 ## File Structure
+
+**`tests/Sigil.Core.Tests/`**
+- Modify: `Sigil.Core.Tests.csproj` (swap FluentAssertions → Shouldly)
+- Modify: `Audit/AuditEntryTests.cs`, `Identity/IdentityTypesTests.cs`, `Protocol/AgentLogEntryTests.cs`, `Protocol/ContextDeltaTests.cs`, `Protocol/ContextSnapshotTests.cs`, `Protocol/JsonRoundTripTests.cs`, `Protocol/UsageMetricsTests.cs` (FluentAssertions → Shouldly)
 
 **`src/Sigil.Core/Registry/`**
 - Add: `Skill.cs`, `ModelSpec.cs`, `ToolBinding.cs`
@@ -40,7 +44,584 @@
 
 ---
 
-## Task 1: Add `Skill` record
+## Task 1: Migrate test framework from FluentAssertions to Shouldly
+
+Swap the assertion library project-wide so the new tests added by later tasks use the standard. All seven existing test files get rewritten in this single task to keep the build green.
+
+**Files:**
+- Modify: `tests/Sigil.Core.Tests/Sigil.Core.Tests.csproj`
+- Modify: `tests/Sigil.Core.Tests/Audit/AuditEntryTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Identity/IdentityTypesTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Protocol/AgentLogEntryTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Protocol/ContextDeltaTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Protocol/ContextSnapshotTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Protocol/JsonRoundTripTests.cs`
+- Modify: `tests/Sigil.Core.Tests/Protocol/UsageMetricsTests.cs`
+
+- [ ] **Step 1: Swap the package reference**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Sigil.Core.Tests.csproj`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Shouldly" Version="4.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sigil.Core\Sigil.Core.csproj" />
+  </ItemGroup>
+</Project>
+```
+
+- [ ] **Step 2: Restore packages**
+
+Run: `dotnet restore sigil.sln`
+
+Expected: restores cleanly. Shouldly 4.2.1 is downloaded; FluentAssertions is no longer referenced.
+
+- [ ] **Step 3: Rewrite `AuditEntryTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Audit/AuditEntryTests.cs`:
+
+```csharp
+using Shouldly;
+using Sigil.Core.Audit;
+using Sigil.Core.Identity;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Audit;
+
+public class AuditEntryTests
+{
+    [Fact]
+    public void Default_GeneratesAuditIdAndUtcTimestamp()
+    {
+        var before = DateTime.UtcNow;
+        var entry = new AuditEntry();
+        var after = DateTime.UtcNow;
+
+        entry.AuditId.ShouldNotBeNullOrWhiteSpace();
+        entry.AuditId.Length.ShouldBe(32); // Guid "N" format
+        entry.Timestamp.ShouldBeGreaterThanOrEqualTo(before);
+        entry.Timestamp.ShouldBeLessThanOrEqualTo(after);
+        entry.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public void TwoDefaultEntries_HaveDifferentAuditIds()
+    {
+        var a = new AuditEntry();
+        var b = new AuditEntry();
+
+        a.AuditId.ShouldNotBe(b.AuditId);
+    }
+
+    [Fact]
+    public void TwoEntriesWithIdenticalFields_AreEqual()
+    {
+        var delta = new ContextDelta();
+        var metrics = new UsageMetrics();
+
+        var a = new AuditEntry
+        {
+            AuditId = "fixed-id",
+            JobId = new JobId("j"),
+            AgentId = new AgentId("a"),
+            StepId = new StepId("s"),
+            Delta = delta,
+            Metrics = metrics,
+            Timestamp = new DateTime(2026, 4, 19, 0, 0, 0, DateTimeKind.Utc)
+        };
+        var b = a with { };
+
+        a.ShouldBe(b);
+    }
+
+    [Fact]
+    public void TwoEntriesDifferingInOneField_AreNotEqual()
+    {
+        var a = new AuditEntry { AuditId = "x", JobId = new JobId("j1") };
+        var b = a with { JobId = new JobId("j2") };
+
+        a.ShouldNotBe(b);
+    }
+}
+```
+
+- [ ] **Step 4: Rewrite `IdentityTypesTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Identity/IdentityTypesTests.cs`:
+
+```csharp
+using Shouldly;
+using Sigil.Core.Identity;
+using Xunit;
+
+namespace Sigil.Core.Tests.Identity;
+
+public class IdentityTypesTests
+{
+    public static IEnumerable<object[]> IdentityFactories() =>
+        new List<object[]>
+        {
+            new object[] { (Func<string, object>)(v => new AgentId(v)) },
+            new object[] { (Func<string, object>)(v => new JobId(v)) },
+            new object[] { (Func<string, object>)(v => new StepId(v)) },
+            new object[] { (Func<string, object>)(v => new ETag(v)) }
+        };
+
+    [Theory]
+    [MemberData(nameof(IdentityFactories))]
+    public void Identity_WithSameValue_AreEqual(Func<string, object> make)
+    {
+        var a = make("x");
+        var b = make("x");
+
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
+    }
+
+    [Theory]
+    [MemberData(nameof(IdentityFactories))]
+    public void Identity_WithDifferentValue_AreNotEqual(Func<string, object> make)
+    {
+        var a = make("x");
+        var b = make("y");
+
+        a.ShouldNotBe(b);
+    }
+
+    [Fact]
+    public void AgentId_ToString_ReturnsRawValue()
+    {
+        var a = new AgentId("agent-xyz");
+
+        a.ToString().ShouldBe("agent-xyz");
+    }
+
+    [Fact]
+    public void JobId_ToString_ReturnsRawValue()
+    {
+        new JobId("job-1").ToString().ShouldBe("job-1");
+    }
+
+    [Fact]
+    public void StepId_ToString_ReturnsRawValue()
+    {
+        new StepId("step-1").ToString().ShouldBe("step-1");
+    }
+
+    [Fact]
+    public void ETag_ToString_ReturnsRawValue()
+    {
+        new ETag("abc123").ToString().ShouldBe("abc123");
+    }
+}
+```
+
+- [ ] **Step 5: Rewrite `AgentLogEntryTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Protocol/AgentLogEntryTests.cs`:
+
+```csharp
+using Shouldly;
+using Sigil.Core.Identity;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Protocol;
+
+public class AgentLogEntryTests
+{
+    [Fact]
+    public void Default_HasInfoLevelAndEmptyMessageAndUtcTimestamp()
+    {
+        var before = DateTime.UtcNow;
+        var entry = new AgentLogEntry();
+        var after = DateTime.UtcNow;
+
+        entry.Level.ShouldBe("Info");
+        entry.Message.ShouldBe("");
+        entry.Timestamp.ShouldBeGreaterThanOrEqualTo(before);
+        entry.Timestamp.ShouldBeLessThanOrEqualTo(after);
+        entry.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public void InitProperties_Roundtrip()
+    {
+        var ts = new DateTime(2026, 4, 19, 12, 0, 0, DateTimeKind.Utc);
+        var entry = new AgentLogEntry
+        {
+            Timestamp = ts,
+            AgentId = new AgentId("agent-1"),
+            Level = "Warn",
+            Message = "hello"
+        };
+
+        entry.Timestamp.ShouldBe(ts);
+        entry.AgentId.ShouldBe(new AgentId("agent-1"));
+        entry.Level.ShouldBe("Warn");
+        entry.Message.ShouldBe("hello");
+    }
+}
+```
+
+- [ ] **Step 6: Rewrite `ContextDeltaTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Protocol/ContextDeltaTests.cs`:
+
+```csharp
+using Shouldly;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Protocol;
+
+public class ContextDeltaTests
+{
+    [Fact]
+    public void Default_HasEmptyUpdatesAndRemovals()
+    {
+        var delta = new ContextDelta();
+
+        delta.Updates.ShouldBeEmpty();
+        delta.Removals.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void CanPopulateUpdatesAfterConstruction()
+    {
+        var delta = new ContextDelta();
+        delta.Updates["key"] = "value";
+
+        delta.Updates.ShouldContainKey("key");
+    }
+
+    [Fact]
+    public void DeltasWithSameReferenceInstances_AreEqualByRecordSemantics()
+    {
+        // Record equality compares reference-type properties by reference, not by content.
+        // Two records are equal only when they hold the *same* dictionary/array instances.
+        var shared = new Dictionary<string, object> { ["k"] = "v" };
+        var sharedR = new[] { "r" };
+        var c = new ContextDelta { Updates = shared, Removals = sharedR };
+        var d = new ContextDelta { Updates = shared, Removals = sharedR };
+
+        c.ShouldBe(d);
+    }
+}
+```
+
+- [ ] **Step 7: Rewrite `ContextSnapshotTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Protocol/ContextSnapshotTests.cs`:
+
+```csharp
+using CSharpFunctionalExtensions;
+using Shouldly;
+using Sigil.Core.Identity;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Protocol;
+
+public class ContextSnapshotTests
+{
+    [Fact]
+    public void Default_StateIsEmpty()
+    {
+        var snap = new ContextSnapshot();
+
+        snap.State.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void JobId_RoundTrips()
+    {
+        var snap = new ContextSnapshot { JobId = new JobId("job-1") };
+
+        snap.JobId.ShouldBe(new JobId("job-1"));
+    }
+
+    [Fact]
+    public void Get_WhenKeyPresentAndTypeMatches_ReturnsMaybeFromValue()
+    {
+        var snap = new ContextSnapshot
+        {
+            State = new Dictionary<string, object> { ["count"] = 42 }
+        };
+
+        var result = snap.Get<int>("count");
+
+        result.HasValue.ShouldBeTrue();
+        result.Value.ShouldBe(42);
+    }
+
+    [Fact]
+    public void Get_WhenKeyAbsent_ReturnsMaybeNone()
+    {
+        var snap = new ContextSnapshot();
+
+        var result = snap.Get<int>("missing");
+
+        result.HasNoValue.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Get_WhenKeyPresentButWrongType_ReturnsMaybeNone()
+    {
+        var snap = new ContextSnapshot
+        {
+            State = new Dictionary<string, object> { ["count"] = "not-an-int" }
+        };
+
+        var result = snap.Get<int>("count");
+
+        result.HasNoValue.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void State_IsReadOnlyDictionary()
+    {
+        typeof(ContextSnapshot).GetProperty("State")!.PropertyType
+            .ShouldBe(typeof(IReadOnlyDictionary<string, object>));
+    }
+}
+```
+
+- [ ] **Step 8: Rewrite `UsageMetricsTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Protocol/UsageMetricsTests.cs`:
+
+```csharp
+using Shouldly;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Protocol;
+
+public class UsageMetricsTests
+{
+    [Fact]
+    public void Default_HasZeroTokensAndEmptyCustom()
+    {
+        var m = new UsageMetrics();
+
+        m.PromptTokens.ShouldBe(0);
+        m.CompletionTokens.ShouldBe(0);
+        m.Duration.ShouldBe(TimeSpan.Zero);
+        m.Custom.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void InitProperties_Roundtrip()
+    {
+        var m = new UsageMetrics
+        {
+            PromptTokens = 10,
+            CompletionTokens = 20,
+            Duration = TimeSpan.FromSeconds(1.5),
+            Custom = new Dictionary<string, object> { ["model"] = "claude-sonnet-4-6" }
+        };
+
+        m.PromptTokens.ShouldBe(10);
+        m.CompletionTokens.ShouldBe(20);
+        m.Duration.ShouldBe(TimeSpan.FromSeconds(1.5));
+        m.Custom.ShouldContainKey("model");
+    }
+}
+```
+
+- [ ] **Step 9: Rewrite `JsonRoundTripTests.cs`**
+
+Replace the entire contents of `tests/Sigil.Core.Tests/Protocol/JsonRoundTripTests.cs`:
+
+```csharp
+using System.Text.Json;
+using Shouldly;
+using Sigil.Core.Audit;
+using Sigil.Core.Identity;
+using Sigil.Core.Protocol;
+using Xunit;
+
+namespace Sigil.Core.Tests.Protocol;
+
+public class JsonRoundTripTests
+{
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = false,
+        IncludeFields = false
+    };
+
+    [Fact]
+    public void AgentId_RoundTrips()
+    {
+        var original = new AgentId("agent-1");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AgentId>(json, Options);
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void ContextDelta_RoundTrips()
+    {
+        var original = new ContextDelta
+        {
+            Updates = new Dictionary<string, object> { ["k"] = "v" },
+            Removals = ["r1", "r2"]
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<ContextDelta>(json, Options)!;
+
+        back.Updates.ShouldContainKey("k");
+        back.Removals.ShouldBe(new[] { "r1", "r2" });
+    }
+
+    [Fact]
+    public void UsageMetrics_RoundTrips()
+    {
+        var original = new UsageMetrics
+        {
+            PromptTokens = 100,
+            CompletionTokens = 200,
+            Duration = TimeSpan.FromSeconds(2.5)
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<UsageMetrics>(json, Options)!;
+
+        back.PromptTokens.ShouldBe(100);
+        back.CompletionTokens.ShouldBe(200);
+        back.Duration.ShouldBe(TimeSpan.FromSeconds(2.5));
+    }
+
+    [Fact]
+    public void AgentLogEntry_RoundTrips()
+    {
+        var original = new AgentLogEntry
+        {
+            Timestamp = new DateTime(2026, 4, 19, 12, 0, 0, DateTimeKind.Utc),
+            AgentId = new AgentId("agent-1"),
+            Level = "Info",
+            Message = "hello"
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AgentLogEntry>(json, Options)!;
+
+        back.Timestamp.ShouldBe(original.Timestamp);
+        back.AgentId.ShouldBe(original.AgentId);
+        back.Level.ShouldBe("Info");
+        back.Message.ShouldBe("hello");
+    }
+
+    [Fact]
+    public void AuditEntry_RoundTrips()
+    {
+        var original = new AuditEntry
+        {
+            AuditId = "fixed-audit-id",
+            JobId = new JobId("j-1"),
+            AgentId = new AgentId("a-1"),
+            StepId = new StepId("s-1"),
+            Delta = new ContextDelta { Removals = ["k"] },
+            Metrics = new UsageMetrics { PromptTokens = 5 },
+            Timestamp = new DateTime(2026, 4, 19, 12, 0, 0, DateTimeKind.Utc)
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AuditEntry>(json, Options)!;
+
+        back.AuditId.ShouldBe("fixed-audit-id");
+        back.JobId.ShouldBe(original.JobId);
+        back.AgentId.ShouldBe(original.AgentId);
+        back.StepId.ShouldBe(original.StepId);
+        back.Delta.Removals.ShouldBe(new[] { "k" });
+        back.Metrics.PromptTokens.ShouldBe(5);
+        back.Timestamp.ShouldBe(original.Timestamp);
+    }
+
+    [Fact]
+    public void JobId_RoundTrips()
+    {
+        var original = new JobId("job-1");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<JobId>(json, Options);
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void StepId_RoundTrips()
+    {
+        var original = new StepId("step-1");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<StepId>(json, Options);
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void ETag_RoundTrips()
+    {
+        var original = new ETag("etag-abc");
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<ETag>(json, Options);
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void IdentityTypes_RejectJsonNull()
+    {
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<AgentId>("null", Options))
+            .Message.ShouldContain("AgentId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<JobId>("null", Options))
+            .Message.ShouldContain("JobId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<StepId>("null", Options))
+            .Message.ShouldContain("StepId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<ETag>("null", Options))
+            .Message.ShouldContain("ETag");
+    }
+}
+```
+
+- [ ] **Step 10: Build and run all tests**
+
+Run: `dotnet build sigil.sln && dotnet test sigil.sln`
+
+Expected: build succeeds with zero warnings about FluentAssertions. All existing tests pass (count unchanged).
+
+If `dotnet build` reports `error CS0246: The type or namespace name 'FluentAssertions' could not be found` from any file, you missed migrating that file. Grep `tests/Sigil.Core.Tests/` for `FluentAssertions` — there should be **zero** matches in any `.cs` or `.csproj` file.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add tests/Sigil.Core.Tests/
+git commit -m "refactor(test): switch assertion library to Shouldly"
+```
+
+---
+
+## Task 2: Add `Skill` record
 
 **Files:**
 - Test: Create `tests/Sigil.Core.Tests/Registry/SkillTests.cs`
@@ -51,7 +632,7 @@
 Create `tests/Sigil.Core.Tests/Registry/SkillTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Registry;
 using Xunit;
 
@@ -64,9 +645,9 @@ public class SkillTests
     {
         var s = new Skill { Name = "summarize-pdf", Description = "x" };
 
-        s.RequiredTools.Should().BeEmpty();
-        s.EstimatedMaxTokens.Should().BeNull();
-        s.Version.Should().Be("1.0.0");
+        s.RequiredTools.ShouldBeEmpty();
+        s.EstimatedMaxTokens.ShouldBeNull();
+        s.Version.ShouldBe("1.0.0");
     }
 
     [Fact]
@@ -82,8 +663,8 @@ public class SkillTests
         };
         var b = a with { };
 
-        a.Should().Be(b);
-        a.GetHashCode().Should().Be(b.GetHashCode());
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Fact]
@@ -92,7 +673,7 @@ public class SkillTests
         var a = new Skill { Name = "x", Description = "y" };
         var b = a with { Name = "z" };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 }
 ```
@@ -135,7 +716,7 @@ git commit -m "feat(core): add Skill record"
 
 ---
 
-## Task 2: Add `ModelSpec` and `Sampling` records
+## Task 3: Add `ModelSpec` and `Sampling` records
 
 **Files:**
 - Test: Create `tests/Sigil.Core.Tests/Registry/ModelSpecTests.cs`
@@ -146,7 +727,7 @@ git commit -m "feat(core): add Skill record"
 Create `tests/Sigil.Core.Tests/Registry/ModelSpecTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Registry;
 using Xunit;
 
@@ -159,9 +740,9 @@ public class ModelSpecTests
     {
         var s = new Sampling();
 
-        s.Temperature.Should().BeNull();
-        s.TopP.Should().BeNull();
-        s.MaxOutputTokens.Should().BeNull();
+        s.Temperature.ShouldBeNull();
+        s.TopP.ShouldBeNull();
+        s.MaxOutputTokens.ShouldBeNull();
     }
 
     [Fact]
@@ -169,8 +750,8 @@ public class ModelSpecTests
     {
         var m = new ModelSpec { Provider = "openai", Model = "gpt-4o-mini" };
 
-        m.Sampling.Should().NotBeNull();
-        m.Sampling.Temperature.Should().BeNull();
+        m.Sampling.ShouldNotBeNull();
+        m.Sampling.Temperature.ShouldBeNull();
     }
 
     [Fact]
@@ -184,8 +765,8 @@ public class ModelSpecTests
         };
         var b = a with { };
 
-        a.Should().Be(b);
-        a.GetHashCode().Should().Be(b.GetHashCode());
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Fact]
@@ -199,7 +780,7 @@ public class ModelSpecTests
         };
         var b = a with { Sampling = new Sampling { Temperature = 0.7 } };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 }
 ```
@@ -247,7 +828,7 @@ git commit -m "feat(core): add ModelSpec and Sampling records"
 
 ---
 
-## Task 3: Add `ToolBinding` record and `ToolKind` enum
+## Task 4: Add `ToolBinding` record and `ToolKind` enum
 
 **Files:**
 - Test: Create `tests/Sigil.Core.Tests/Registry/ToolBindingTests.cs`
@@ -258,7 +839,7 @@ git commit -m "feat(core): add ModelSpec and Sampling records"
 Create `tests/Sigil.Core.Tests/Registry/ToolBindingTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Registry;
 using Xunit;
 
@@ -269,8 +850,9 @@ public class ToolBindingTests
     [Fact]
     public void ToolKind_HasExpectedMembers()
     {
-        Enum.GetValues<ToolKind>().Should().BeEquivalentTo(
-            new[] { ToolKind.Mcp, ToolKind.Http, ToolKind.InProcess });
+        Enum.GetValues<ToolKind>().ShouldBe(
+            new[] { ToolKind.Mcp, ToolKind.Http, ToolKind.InProcess },
+            ignoreOrder: true);
     }
 
     [Fact]
@@ -285,8 +867,8 @@ public class ToolBindingTests
         };
         var b = a with { };
 
-        a.Should().Be(b);
-        a.GetHashCode().Should().Be(b.GetHashCode());
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Fact]
@@ -301,7 +883,7 @@ public class ToolBindingTests
         };
         var b = a with { Kind = ToolKind.Mcp };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 }
 ```
@@ -350,7 +932,7 @@ git commit -m "feat(core): add ToolBinding and ToolKind"
 
 ---
 
-## Task 4: Tighten `SecurityProfile.AllowedTools` collection type
+## Task 5: Tighten `SecurityProfile.AllowedTools` collection type
 
 `AllowedTools` currently uses `string[]`. Align with the read-only collection convention used elsewhere on `AgentRegistration` (`IReadOnlyList<Capability>`, `IReadOnlyDictionary<string, string>`).
 
@@ -387,7 +969,7 @@ git commit -m "refactor(core): make SecurityProfile.AllowedTools an IReadOnlyLis
 
 ---
 
-## Task 5: Slim `AgentMetadata` to `Tags` only
+## Task 6: Slim `AgentMetadata` to `Tags` only
 
 **Files:**
 - Test: Create `tests/Sigil.Core.Tests/Registry/AgentMetadataTests.cs`
@@ -398,7 +980,7 @@ git commit -m "refactor(core): make SecurityProfile.AllowedTools an IReadOnlyLis
 Create `tests/Sigil.Core.Tests/Registry/AgentMetadataTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Registry;
 using Xunit;
 
@@ -411,7 +993,7 @@ public class AgentMetadataTests
     {
         var m = new AgentMetadata();
 
-        m.Tags.Should().BeEmpty();
+        m.Tags.ShouldBeEmpty();
     }
 
     [Fact]
@@ -423,7 +1005,7 @@ public class AgentMetadataTests
         };
         var b = a with { };
 
-        a.Should().Be(b);
+        a.ShouldBe(b);
     }
 }
 ```
@@ -469,9 +1051,9 @@ git commit -m "refactor(core): slim AgentMetadata to Tags only"
 
 ---
 
-## Task 6: Refactor `AgentRegistration` (first-class Model, Skills, Tools, MaxTokenBudget)
+## Task 7: Refactor `AgentRegistration` (first-class Model, Skills, Tools, MaxTokenBudget)
 
-This task replaces the `Capabilities` field with `Skills`, lifts `Model` and `MaxTokenBudget` to top-level fields, and adds `Tools`. Capability is still on disk after this task — it just isn't referenced from the registration anymore. (Task 7 deletes it.)
+This task replaces the `Capabilities` field with `Skills`, lifts `Model` and `MaxTokenBudget` to top-level fields, and adds `Tools`. Capability is still on disk after this task — it just isn't referenced from the registration anymore. (Task 8 deletes it.)
 
 **Files:**
 - Test: Create `tests/Sigil.Core.Tests/Registry/AgentRegistrationTests.cs`
@@ -482,7 +1064,7 @@ This task replaces the `Capabilities` field with `Skills`, lifts `Model` and `Ma
 Create `tests/Sigil.Core.Tests/Registry/AgentRegistrationTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Identity;
 using Sigil.Core.Registry;
 using Xunit;
@@ -547,12 +1129,12 @@ public class AgentRegistrationTests
             Model = new ModelSpec { Provider = "openai", Model = "gpt-4o-mini" }
         };
 
-        r.Skills.Should().BeEmpty();
-        r.Tools.Should().BeEmpty();
-        r.MaxTokenBudget.Should().BeNull();
-        r.RoutingWeight.Should().Be(100);
-        r.Status.Should().Be(AgentStatus.Starting);
-        r.SemanticVersion.Should().Be("1.0.0");
+        r.Skills.ShouldBeEmpty();
+        r.Tools.ShouldBeEmpty();
+        r.MaxTokenBudget.ShouldBeNull();
+        r.RoutingWeight.ShouldBe(100);
+        r.Status.ShouldBe(AgentStatus.Starting);
+        r.SemanticVersion.ShouldBe("1.0.0");
     }
 
     [Fact]
@@ -561,8 +1143,8 @@ public class AgentRegistrationTests
         var a = MakeFull();
         var b = a with { };
 
-        a.Should().Be(b);
-        a.GetHashCode().Should().Be(b.GetHashCode());
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Fact]
@@ -571,7 +1153,7 @@ public class AgentRegistrationTests
         var a = MakeFull();
         var b = a with { Skills = [] };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 
     [Fact]
@@ -583,7 +1165,7 @@ public class AgentRegistrationTests
             Model = a.Model with { Model = "gpt-4o" }
         };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 }
 ```
@@ -629,7 +1211,7 @@ public sealed record AgentRegistration
 
 Run: `dotnet build sigil.sln`
 
-Expected: build succeeds. `Capability.cs` still exists on disk and `IAgentRegistrationStore.FindByCapabilityAsync` still compiles (it takes a `string`, not a `Capability`), but `AgentRegistration` no longer references either. Task 7 will delete them.
+Expected: build succeeds. `Capability.cs` still exists on disk and `IAgentRegistrationStore.FindByCapabilityAsync` still compiles (it takes a `string`, not a `Capability`), but `AgentRegistration` no longer references either. Task 8 will delete them.
 
 - [ ] **Step 5: Run new tests**
 
@@ -652,7 +1234,7 @@ git commit -m "feat(core): make Model, Skills, Tools first-class on AgentRegistr
 
 ---
 
-## Task 7: Drop the Capability concept (delete record + rename store method)
+## Task 8: Drop the Capability concept (delete record + rename store method)
 
 These two changes are one conceptual move — Capability is no longer a thing in Sigil. Land them together so the diff and commit message reflect the single intent.
 
@@ -731,7 +1313,7 @@ git commit -m "refactor(core): drop Capability — Skill is the routable unit"
 
 ---
 
-## Task 8: Append round-trip tests for the new types
+## Task 9: Append round-trip tests for the new types
 
 The test suite has a single `JsonRoundTripTests` class that covers identity types, protocol records, and audit. Append cases for the new registry types so any future serialization regression is caught.
 
@@ -740,13 +1322,13 @@ The test suite has a single `JsonRoundTripTests` class that covers identity type
 
 - [ ] **Step 1: Append the new round-trip tests**
 
-Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just above the closing brace), preserving the existing `Options` and existing tests:
+Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just above the closing brace), preserving the existing `Options` and existing tests. Add `using Sigil.Core.Registry;` to the existing using block at the top of the file.
 
 ```csharp
     [Fact]
     public void Skill_RoundTrips()
     {
-        var original = new Sigil.Core.Registry.Skill
+        var original = new Skill
         {
             Name = "summarize-pdf",
             Description = "Summarize a PDF.",
@@ -756,19 +1338,19 @@ Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just
         };
 
         var json = JsonSerializer.Serialize(original, Options);
-        var back = JsonSerializer.Deserialize<Sigil.Core.Registry.Skill>(json, Options)!;
+        var back = JsonSerializer.Deserialize<Skill>(json, Options)!;
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
     public void ModelSpec_RoundTrips()
     {
-        var original = new Sigil.Core.Registry.ModelSpec
+        var original = new ModelSpec
         {
             Provider = "openai",
             Model = "gpt-4o-mini",
-            Sampling = new Sigil.Core.Registry.Sampling
+            Sampling = new Sampling
             {
                 Temperature = 0.2,
                 TopP = 0.9,
@@ -777,47 +1359,49 @@ Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just
         };
 
         var json = JsonSerializer.Serialize(original, Options);
-        var back = JsonSerializer.Deserialize<Sigil.Core.Registry.ModelSpec>(json, Options)!;
+        var back = JsonSerializer.Deserialize<ModelSpec>(json, Options)!;
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
     public void ToolBinding_RoundTrips()
     {
-        var original = new Sigil.Core.Registry.ToolBinding
+        var original = new ToolBinding
         {
             Name = "get_forecast",
-            Kind = Sigil.Core.Registry.ToolKind.Http,
+            Kind = ToolKind.Http,
             Description = "Fetch a 7-day forecast.",
             ParameterSchema = "{\"type\":\"object\"}"
         };
 
         var json = JsonSerializer.Serialize(original, Options);
-        var back = JsonSerializer.Deserialize<Sigil.Core.Registry.ToolBinding>(json, Options)!;
+        var back = JsonSerializer.Deserialize<ToolBinding>(json, Options)!;
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
     public void AgentMetadata_RoundTrips()
     {
-        var original = new Sigil.Core.Registry.AgentMetadata
+        var original = new AgentMetadata
         {
             Tags = new Dictionary<string, string> { ["team"] = "platform", ["tier"] = "standard" }
         };
 
         var json = JsonSerializer.Serialize(original, Options);
-        var back = JsonSerializer.Deserialize<Sigil.Core.Registry.AgentMetadata>(json, Options)!;
+        var back = JsonSerializer.Deserialize<AgentMetadata>(json, Options)!;
 
-        back.Tags.Should().ContainKey("team").WhoseValue.Should().Be("platform");
-        back.Tags.Should().ContainKey("tier").WhoseValue.Should().Be("standard");
+        back.Tags.ShouldContainKey("team");
+        back.Tags["team"].ShouldBe("platform");
+        back.Tags.ShouldContainKey("tier");
+        back.Tags["tier"].ShouldBe("standard");
     }
 
     [Fact]
     public void AgentRegistration_RoundTrips()
     {
-        var original = new Sigil.Core.Registry.AgentRegistration
+        var original = new AgentRegistration
         {
             AgentId = new AgentId("weather-bot"),
             Name = "Weather Bot",
@@ -825,16 +1409,16 @@ Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just
             EndpointUrl = "https://weather-bot.internal:8443",
             SemanticVersion = "1.0.0",
             RoutingWeight = 100,
-            Status = Sigil.Core.Registry.AgentStatus.Healthy,
-            Model = new Sigil.Core.Registry.ModelSpec
+            Status = AgentStatus.Healthy,
+            Model = new ModelSpec
             {
                 Provider = "openai",
                 Model = "gpt-4o-mini",
-                Sampling = new Sigil.Core.Registry.Sampling { Temperature = 0.2, MaxOutputTokens = 800 }
+                Sampling = new Sampling { Temperature = 0.2, MaxOutputTokens = 800 }
             },
             Skills =
             [
-                new Sigil.Core.Registry.Skill
+                new Skill
                 {
                     Name = "forecast-summary",
                     Description = "Summarize a forecast.",
@@ -844,17 +1428,17 @@ Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just
             ],
             Tools =
             [
-                new Sigil.Core.Registry.ToolBinding
+                new ToolBinding
                 {
                     Name = "get_forecast",
-                    Kind = Sigil.Core.Registry.ToolKind.Http,
+                    Kind = ToolKind.Http,
                     Description = "Fetch a 7-day forecast.",
                     ParameterSchema = "{\"type\":\"object\"}"
                 }
             ],
             MaxTokenBudget = 4000,
-            Security = new Sigil.Core.Registry.SecurityProfile { AllowedTools = new[] { "get_forecast" } },
-            Metadata = new Sigil.Core.Registry.AgentMetadata
+            Security = new SecurityProfile { AllowedTools = new[] { "get_forecast" } },
+            Metadata = new AgentMetadata
             {
                 Tags = new Dictionary<string, string> { ["team"] = "platform" }
             },
@@ -863,21 +1447,19 @@ Add these `[Fact]` methods to the bottom of the `JsonRoundTripTests` class (just
         };
 
         var json = JsonSerializer.Serialize(original, Options);
-        var back = JsonSerializer.Deserialize<Sigil.Core.Registry.AgentRegistration>(json, Options)!;
+        var back = JsonSerializer.Deserialize<AgentRegistration>(json, Options)!;
 
-        back.Name.Should().Be("Weather Bot");
-        back.Skills.Should().HaveCount(1);
-        back.Skills[0].Name.Should().Be("forecast-summary");
-        back.Tools.Should().HaveCount(1);
-        back.Tools[0].Kind.Should().Be(Sigil.Core.Registry.ToolKind.Http);
-        back.Model.Provider.Should().Be("openai");
-        back.MaxTokenBudget.Should().Be(4000);
-        back.Security.AllowedTools.Should().Equal("get_forecast");
-        back.Metadata.Tags.Should().ContainKey("team");
+        back.Name.ShouldBe("Weather Bot");
+        back.Skills.Count.ShouldBe(1);
+        back.Skills[0].Name.ShouldBe("forecast-summary");
+        back.Tools.Count.ShouldBe(1);
+        back.Tools[0].Kind.ShouldBe(ToolKind.Http);
+        back.Model.Provider.ShouldBe("openai");
+        back.MaxTokenBudget.ShouldBe(4000);
+        back.Security.AllowedTools.ShouldBe(new[] { "get_forecast" });
+        back.Metadata.Tags.ShouldContainKey("team");
     }
 ```
-
-(The fully-qualified type names avoid adding a `using Sigil.Core.Registry;` to the file's existing import block — minimal-diff style. If you prefer to add the using and shorten the names, that is fine too.)
 
 - [ ] **Step 2: Run round-trip tests**
 
@@ -894,7 +1476,7 @@ git commit -m "test(core): round-trip Skill, ModelSpec, ToolBinding, AgentMetada
 
 ---
 
-## Task 9: Update the architecture blueprint
+## Task 10: Update the architecture blueprint
 
 Five edits inside `.bob/docs/sigil-architecture-blueprint.md`. All edits describe the present — no narrating the change.
 
@@ -916,13 +1498,7 @@ Replace with:
 
 - [ ] **Step 2: §3 — Agent Protocol vocabulary**
 
-In the Mermaid sequence diagram block under "## 3. The Agent Protocol", any narrative phrasing referring to "capability" should read "skill". Specifically, the line:
-
-```
-Gateway->>Agent: POST /sigil/validate (task preview)
-```
-
-leaves the diagram alone, but the surrounding prose paragraph and the `AgentExecutionPackage` / `AgentTask` C# example needs `CapabilityName` replaced with `SkillName`. Update the C# code block under §3 so `AgentTask` reads:
+In §3, anywhere the protocol vocabulary mentions "capability" it now reads "skill". Update the C# code block under §3 so `AgentTask` reads:
 
 ```csharp
 public record AgentTask
@@ -935,7 +1511,7 @@ public record AgentTask
 }
 ```
 
-(If `AgentTask` is not currently spelled out in §3, this clarifies it. The point is: anywhere the protocol vocabulary mentions "capability" in this section, it now reads "skill".)
+(If `AgentTask` is not currently spelled out in §3, this clarifies it.)
 
 - [ ] **Step 3: §4.1 — Secure Agent Registry data model**
 
@@ -1127,7 +1703,7 @@ git commit -m "docs(blueprint): align Agent definition with the SDK + model + pr
 
 ---
 
-## Task 10: Update the README
+## Task 11: Update the README
 
 Two small edits in `README.md`.
 
@@ -1170,13 +1746,13 @@ git commit -m "docs(readme): describe the agent runtime as configured SDK + mani
 
 ---
 
-## Task 11: Final verification
+## Task 12: Final verification
 
 - [ ] **Step 1: Full build + test**
 
 Run: `dotnet build sigil.sln && dotnet test sigil.sln`
 
-Expected: build succeeds, all tests pass (totals will include the 5 new round-trip tests + 16-ish new per-record tests across Skill/ModelSpec/ToolBinding/AgentMetadata/AgentRegistration).
+Expected: build succeeds, all tests pass (totals will include the 5 new round-trip tests + ~16 new per-record tests across Skill/ModelSpec/ToolBinding/AgentMetadata/AgentRegistration).
 
 - [ ] **Step 2: Confirm no `Capability` orphans in code**
 
@@ -1187,13 +1763,17 @@ Use the Grep tool: search the repo for `Capability` (case-sensitive). Expected m
 
 Expected **zero** matches in `src/`, `tests/`, `.bob/docs/sigil-architecture-blueprint.md`, or `README.md`.
 
-If any survive in those locations, fix and amend the relevant commit (or add a follow-up commit — the project rule is to prefer new commits over amending).
+If any survive in those locations, fix and commit a follow-up (project rule prefers new commits over amending).
 
 - [ ] **Step 3: Confirm no `FindByCapabilityAsync` orphans**
 
 Same check, search for `FindByCapabilityAsync`. Expected matches: only in spec and plan (allowed). Code/tests/blueprint: zero.
 
-- [ ] **Step 4: Push the branch**
+- [ ] **Step 4: Confirm no `FluentAssertions` orphans**
+
+Search for `FluentAssertions`. Expected matches: zero in `src/`, `tests/`, or any `.csproj` file. Allowed only in the plan and (incidentally) the spec or memory.
+
+- [ ] **Step 5: Push the branch**
 
 Verify the branch is `feat/skills-design` (already created when the spec was committed).
 
