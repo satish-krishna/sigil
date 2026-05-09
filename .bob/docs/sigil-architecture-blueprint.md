@@ -140,21 +140,29 @@ sequenceDiagram
     end
 ```
 
-**Validation contract:**
+**Task and validation contract:**
 
 ```csharp
-public record ValidationRequest
+public sealed record AgentTask
 {
-    public AgentTask Task { get; init; } = default!;
-    public int AvailableTokenBudget { get; init; }
-    public string[] AvailableTools { get; init; } = [];
+    public JobId JobId { get; init; }
+    public StepId StepId { get; init; }
+    public required string SkillName { get; init; }
+    public string Input { get; init; } = "";
+    public IReadOnlyList<string> AvailableTools { get; init; } = [];
 }
 
-public record ValidationResult
+public sealed record ValidationRequest
+{
+    public required AgentTask Task { get; init; }
+    public int AvailableTokenBudget { get; init; }
+}
+
+public sealed record ValidationResult
 {
     public bool CanHandle { get; init; }
-    public int EstimatedTokens { get; init; }
-    public string[] MissingTools { get; init; } = [];
+    public int? EstimatedTokens { get; init; }
+    public IReadOnlyList<string> MissingTools { get; init; } = [];
     public string? Reason { get; init; }
 }
 ```
@@ -191,40 +199,36 @@ sequenceDiagram
 
 ```csharp
 /// Sent TO the agent — everything it needs to do its job
-public record AgentExecutionPackage
+public sealed record AgentExecutionPackage
 {
-    public AgentTask Task { get; init; } = default!;
-    public Dictionary<string, object> ContextSnapshot { get; init; } = new();
-    public string ETag { get; init; } = default!;
-    public Dictionary<string, string> ScopedCredentials { get; init; } = new();
+    public required AgentTask Task { get; init; }
+    public required ContextSnapshot Snapshot { get; init; }
+    public required ETag ExpectedETag { get; init; }
 }
 
 /// Returned BY the agent — only what changed
-public record AgentExecutionResult
+public sealed record AgentExecutionResult
 {
-    public string TaskId { get; init; } = default!;
-    public bool Success { get; init; }
-    public Dictionary<string, object> StateUpdates { get; init; } = new();
-    public List<AgentLogEntry> Logs { get; init; } = [];
+    public required ContextDelta Delta { get; init; }
+    public IReadOnlyList<AgentLogEntry> Logs { get; init; } = [];
     public UsageMetrics Metrics { get; init; } = new();
-    public string? Error { get; init; }
 }
 
-public record AgentLogEntry
+public sealed record AgentLogEntry
 {
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public AgentId AgentId { get; init; }
     public string Level { get; init; } = "Info";
-    public string Message { get; init; } = default!;
-    public Dictionary<string, object>? Data { get; init; }
+    public string Message { get; init; } = "";
 }
 
-public record UsageMetrics
+public sealed record UsageMetrics
 {
-    public int InputTokens { get; init; }
-    public int OutputTokens { get; init; }
-    public int TotalTokens => InputTokens + OutputTokens;
+    public long PromptTokens { get; init; }
+    public long CompletionTokens { get; init; }
     public TimeSpan Duration { get; init; }
-    public Dictionary<string, double> Custom { get; init; } = new();
+    public IReadOnlyDictionary<string, object> Custom { get; init; }
+        = new Dictionary<string, object>();
 }
 ```
 
