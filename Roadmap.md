@@ -26,7 +26,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 |---|---|---|
 | ✅ | [#1](https://github.com/satish-krishna/sigil/issues/1) | Solution scaffolding |
 | ✅ | [#2](https://github.com/satish-krishna/sigil/issues/2) | Core abstractions — `ISigilStore` + `IAuditStore` |
-| 🔄 | [PR #19](https://github.com/satish-krishna/sigil/pull/19) | Agent definition refinement (`Skill` replaces `Capability`; first-class `Model` / `Tools` / `Skills` on `AgentRegistration`) |
+| ✅ | [PR #19](https://github.com/satish-krishna/sigil/pull/19) | Agent definition refinement (`Skill` replaces `Capability`; first-class `Model` / `Tools` / `Skills` on `AgentRegistration`) |
 
 ---
 
@@ -84,7 +84,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 ## Dependency graph
 
 ```
-              Foundation (#1 ✅, #2 ✅, PR #19 🔄)
+              Foundation (#1 ✅, #2 ✅, PR #19 ✅)
                               │
               ┌───────────────┼───────────────┐
               │               │               │
