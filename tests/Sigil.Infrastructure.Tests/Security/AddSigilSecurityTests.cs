@@ -88,4 +88,54 @@ public class AddSigilSecurityTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.AgentId.ShouldBe(new AgentId("echo-agent"));
     }
+
+    [Fact]
+    public void EmptyAllowlist_Passes_ValidateOnStart()
+    {
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Security:Mode"] = "Open"
+            // no Keys
+        });
+
+        using var provider = NewServices()
+            .AddSigilSecurity(config)
+            .BuildServiceProvider();
+
+        // ValidateOnStart triggers on first IOptions resolution.
+        var opts = provider.GetRequiredService<IOptionsMonitor<SigilSecurityOptions>>().CurrentValue;
+
+        opts.OpenTier.Keys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Validator_PicksUp_OptionsMonitor_Reload()
+    {
+        var initial = new SigilSecurityOptions { Mode = SecurityTier.Open };
+        initial.OpenTier.Keys["echo-agent"] = "old-key";
+
+        var monitor = new TestOptionsMonitor<SigilSecurityOptions>(initial);
+        var validator = new SigilKeyValidator(monitor, NullLogger<SigilKeyValidator>.Instance);
+
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("echo-agent"),
+            SigilKey = "new-key"
+        };
+
+        // Before reload: presented key doesn't match the configured "old-key".
+        var beforeReload = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+        beforeReload.IsFailure.ShouldBeTrue();
+        beforeReload.Error.ShouldBe(SigilSecurityErrors.KeyMismatch);
+
+        // Reload: rotate the configured key to match what the agent will present.
+        var rotated = new SigilSecurityOptions { Mode = SecurityTier.Open };
+        rotated.OpenTier.Keys["echo-agent"] = "new-key";
+        monitor.CurrentValue = rotated;
+
+        // After reload: same call, different outcome.
+        var afterReload = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+        afterReload.IsSuccess.ShouldBeTrue();
+        afterReload.Value.AgentId.ShouldBe(new AgentId("echo-agent"));
+    }
 }
