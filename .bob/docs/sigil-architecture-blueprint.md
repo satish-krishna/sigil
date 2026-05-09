@@ -109,7 +109,7 @@ Every remote agent exposes these HTTP endpoints (handled by the SDK):
 |----------|--------|---------|
 | `/sigil/validate` | POST | **Pre-flight check** — can the agent handle this task right now? (tokens, tools, resources) |
 | `/sigil/execute` | POST | Receive **Task + Context Snapshot**, return **Delta** |
-| `/sigil/health` | GET | Liveness + capability status |
+| `/sigil/health` | GET | Liveness + skill status |
 | `/sigil/cancel/{taskId}` | POST | Cancel a running task |
 | `/sigil/info` | GET | Agent metadata (id, domain, skills, version) |
 
