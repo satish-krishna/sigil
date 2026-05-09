@@ -1523,7 +1523,7 @@ sigil/
 7. **Non-.NET agents** — The HTTP protocol + JWT auth is language-agnostic. Start .NET-only, the protocol ensures future extensibility.
 8. **Snapshot size limits** — What happens when context grows very large? Consider streaming or partial snapshots.
 9. **Delta conflict resolution** — When ETag fails, should the orchestrator auto-retry (with merged state) or fail the step? Start with retry + fresh snapshot.
-- **Kernel-curated skill catalog.** Skills are agent-bundled today. A future kernel-curated catalog (`ISkillStore`) would enable cross-agent reuse, central governance, and skill versioning across the fleet. Surfaced when the SDK runtime lands.
+10. **Kernel-curated skill catalog.** Skills are agent-bundled today. A future kernel-curated catalog (`ISkillStore`) would enable cross-agent reuse, central governance, and skill versioning across the fleet. Surfaced when the SDK runtime lands.
 
 ---
 
