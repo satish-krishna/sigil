@@ -298,4 +298,39 @@ public class JsonRoundTripTests
         back.Security.AllowedTools.ShouldBe(new[] { "get_forecast" });
         back.Metadata.Tags.ContainsKey("team").ShouldBeTrue();
     }
+
+    [Fact]
+    public void ToolKind_SerializesAsString()
+    {
+        var binding = new ToolBinding
+        {
+            Name = "x",
+            Kind = ToolKind.Http,
+            Description = "y",
+            ParameterSchema = "{}"
+        };
+
+        var json = JsonSerializer.Serialize(binding, Options);
+
+        json.ShouldContain("\"Http\"");
+        json.ShouldNotContain("\"Kind\":1");
+    }
+
+    [Fact]
+    public void AgentStatus_SerializesAsString()
+    {
+        var registration = new AgentRegistration
+        {
+            Name = "x",
+            Domain = "y",
+            EndpointUrl = "https://example",
+            Model = new ModelSpec { Provider = "openai", Model = "gpt-4o-mini" },
+            Status = AgentStatus.Healthy
+        };
+
+        var json = JsonSerializer.Serialize(registration, Options);
+
+        json.ShouldContain("\"Healthy\"");
+        json.ShouldNotContain("\"Status\":1");
+    }
 }
