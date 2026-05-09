@@ -62,6 +62,7 @@ public class SigilCredentialsTests
         };
 
         var json = JsonSerializer.Serialize(c);
+        json.ShouldContain("\"agent-1\"");
         var back = JsonSerializer.Deserialize<SigilCredentials>(json);
 
         back.ShouldBe(c);
