@@ -33,7 +33,7 @@ The kernel sits between an external dispatcher (UI, API, or scheduler) and a fle
 
 - **External dispatch** — Intents from a UI, REST call, or schedule.
 - **Orchestrator & Job Manager** — Builds the execution plan (via `IPlanner`), schedules steps, and owns the task graph.
-- **Agent Registry** — Capability and version catalog with routing weights.
+- **Agent Registry** — Skill and version catalog with routing weights.
 - **Policy Engine** — Pre-flight guardrails: token budgets, tool access, rate limits, human-checkpoint gates.
 - **Context Bus & Audit Log** — Atomic state with ETags; every delta is audited immutably.
 - **Secure Agent Gateway** — mTLS + JWT, signed requests, Polly resilience.
