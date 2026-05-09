@@ -131,4 +131,24 @@ public class SigilKeyValidatorTests
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(SigilSecurityErrors.TierNotSupported);
     }
+
+    [Theory]
+    [InlineData("dev-key-echoX")]                  // one byte longer
+    [InlineData("dev-key-ech")]                    // one byte shorter
+    [InlineData("X")]                              // very short
+    [InlineData("dev-key-echo-very-long-suffix")]  // much longer
+    public async Task KeyComparisonHandlesLengthDifferences(string presented)
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("echo-agent"),
+            SigilKey = presented
+        };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.KeyMismatch);
+    }
 }
