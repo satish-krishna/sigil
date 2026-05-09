@@ -95,4 +95,40 @@ public class SigilKeyValidatorTests
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(SigilSecurityErrors.KeyMismatch);
     }
+
+    [Fact]
+    public async Task ModeMisconfigured_Returns_ModeMismatch()
+    {
+        var opts = new SigilSecurityOptions { Mode = SecurityTier.Standard };
+        opts.OpenTier.Keys["echo-agent"] = "dev-key-echo";
+        var validator = MakeValidator(opts);
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("echo-agent"),
+            SigilKey = "dev-key-echo"
+        };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.ModeMismatch);
+    }
+
+    [Theory]
+    [InlineData(SecurityTier.Standard)]
+    [InlineData(SecurityTier.Trusted)]
+    public async Task TierEscalationAboveOpen_Returns_TierNotSupported(SecurityTier requiredTier)
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("echo-agent"),
+            SigilKey = "dev-key-echo"
+        };
+
+        var result = await validator.AuthenticateAsync(creds, requiredTier);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.TierNotSupported);
+    }
 }

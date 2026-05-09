@@ -27,6 +27,12 @@ public sealed class SigilKeyValidator : ISigilSecurity
     {
         var opts = _options.CurrentValue;
 
+        if (opts.Mode != SecurityTier.Open)
+            return Fail(SigilSecurityErrors.ModeMismatch);
+
+        if (requiredTier != SecurityTier.Open)
+            return Fail(SigilSecurityErrors.TierNotSupported);
+
         var key = string.IsNullOrWhiteSpace(credentials.SigilKey) ? null : credentials.SigilKey;
         if (key is null)
             return Fail(SigilSecurityErrors.MissingKey);
