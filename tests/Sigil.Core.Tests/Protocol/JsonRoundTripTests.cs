@@ -318,4 +318,125 @@ public class JsonRoundTripTests
         json.ShouldContain("\"Healthy\"");
         json.ShouldNotContain("\"Status\":1");
     }
+
+    [Fact]
+    public void AgentTask_RoundTrips()
+    {
+        var original = new AgentTask
+        {
+            JobId = new JobId("job-1"),
+            StepId = new StepId("step-1"),
+            SkillName = "summarize-pdf",
+            Input = "https://example.com/doc.pdf",
+            AvailableTools = new[] { "fetch_pdf", "extract_text" }
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AgentTask>(json, Options)!;
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void AgentExecutionPackage_RoundTrips()
+    {
+        var original = new AgentExecutionPackage
+        {
+            Task = new AgentTask
+            {
+                JobId = new JobId("job-1"),
+                StepId = new StepId("step-1"),
+                SkillName = "summarize-pdf",
+                AvailableTools = new[] { "fetch_pdf" }
+            },
+            Snapshot = new ContextSnapshot
+            {
+                JobId = new JobId("job-1"),
+                State = new Dictionary<string, object> { ["key"] = "value" }
+            },
+            ExpectedETag = new ETag("etag-1")
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AgentExecutionPackage>(json, Options)!;
+
+        back.Task.ShouldBe(original.Task);
+        back.Snapshot.JobId.ShouldBe(original.Snapshot.JobId);
+        back.ExpectedETag.ShouldBe(original.ExpectedETag);
+    }
+
+    [Fact]
+    public void AgentExecutionResult_RoundTrips()
+    {
+        var original = new AgentExecutionResult
+        {
+            Delta = new ContextDelta
+            {
+                Updates = new Dictionary<string, object> { ["k"] = "v" },
+                Removals = ["r1"]
+            },
+            Logs = new[]
+            {
+                new AgentLogEntry
+                {
+                    Timestamp = new DateTime(2026, 5, 9, 0, 0, 0, DateTimeKind.Utc),
+                    AgentId = new AgentId("agent-1"),
+                    Level = "Info",
+                    Message = "hello"
+                }
+            },
+            Metrics = new UsageMetrics
+            {
+                PromptTokens = 100,
+                CompletionTokens = 200,
+                Duration = TimeSpan.FromSeconds(2.5)
+            }
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<AgentExecutionResult>(json, Options)!;
+
+        back.Logs.ShouldBe(original.Logs);
+        back.Metrics.PromptTokens.ShouldBe(100);
+        back.Metrics.CompletionTokens.ShouldBe(200);
+        back.Delta.Removals.ShouldBe(new[] { "r1" });
+    }
+
+    [Fact]
+    public void ValidationRequest_RoundTrips()
+    {
+        var original = new ValidationRequest
+        {
+            Task = new AgentTask
+            {
+                JobId = new JobId("job-1"),
+                StepId = new StepId("step-1"),
+                SkillName = "summarize-pdf",
+                AvailableTools = new[] { "fetch_pdf" }
+            },
+            AvailableTokenBudget = 4_000
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<ValidationRequest>(json, Options)!;
+
+        back.ShouldBe(original);
+    }
+
+    [Fact]
+    public void ValidationResult_RoundTrips()
+    {
+        var original = new ValidationResult
+        {
+            CanHandle = false,
+            EstimatedTokens = 1_200,
+            MissingTools = new[] { "fetch_pdf", "extract_text" },
+            Reason = "two tools missing"
+        };
+
+        var json = JsonSerializer.Serialize(original, Options);
+        var back = JsonSerializer.Deserialize<ValidationResult>(json, Options)!;
+
+        back.ShouldBe(original);
+    }
 }

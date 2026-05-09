@@ -34,7 +34,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 
 | Status | Issue | Title | Notes |
 |---|---|---|---|
-| ⬜ | [#18](https://github.com/satish-krishna/sigil/issues/18) | Central Package Management | Land first to keep package versions consistent across all subsequent projects |
+| ✅ | [#18](https://github.com/satish-krishna/sigil/issues/18) | Central Package Management | Land first to keep package versions consistent across all subsequent projects |
 | ⬜ | [#3](https://github.com/satish-krishna/sigil/issues/3) | Agent protocol types (`AgentTask`, `AgentExecutionPackage`, `ValidationRequest`/`Result`) | Required by gateway and SDK |
 | ⬜ | [#4](https://github.com/satish-krishna/sigil/issues/4) | Sigil-Key validation (Open tier) | Required by gateway and SDK |
 
