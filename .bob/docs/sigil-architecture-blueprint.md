@@ -27,7 +27,7 @@ Agents are treated as **ephemeral workers**; the Kernel is the **sole source of 
 | Traditional OS | Sigil |
 |----------------|----------|
 | Processes | Domain Agents |
-| Devices & Drivers | Tools / APIs / MCP Servers |
+| Devices & Drivers | Tools (HTTP, MCP, in-process) and skills loaded by the agent runtime |
 | Context Switch | **Context Snapshot** (state bundling) |
 | System Calls | **Secure Gateway** (mTLS/JWT) |
 | Virtual Memory | **Atomic Context Bus** (optimistic concurrency) |
@@ -111,7 +111,7 @@ Every remote agent exposes these HTTP endpoints (handled by the SDK):
 | `/sigil/execute` | POST | Receive **Task + Context Snapshot**, return **Delta** |
 | `/sigil/health` | GET | Liveness + capability status |
 | `/sigil/cancel/{taskId}` | POST | Cancel a running task |
-| `/sigil/info` | GET | Agent metadata (id, domain, capabilities, version) |
+| `/sigil/info` | GET | Agent metadata (id, domain, skills, version) |
 
 ### 3.2 Pre-flight Validation
 
@@ -244,31 +244,61 @@ public record AgentRegistration
     public AgentId AgentId { get; init; }
     public required string Name { get; init; }
     public required string Domain { get; init; }
-    public IReadOnlyList<Capability> Capabilities { get; init; } = [];
-    public string SemanticVersion { get; init; } = "1.0.0";
     public required string EndpointUrl { get; init; }
-    public int RoutingWeight { get; init; } = 100;  // 0-100, for canary builds
+    public string SemanticVersion { get; init; } = "1.0.0";
+    public int RoutingWeight { get; init; } = 100;          // 0–100, canary builds
     public AgentStatus Status { get; init; } = AgentStatus.Starting;
+
+    public required ModelSpec Model { get; init; }
+    public IReadOnlyList<Skill> Skills { get; init; } = [];
+    public IReadOnlyList<ToolBinding> Tools { get; init; } = [];
+    public int? MaxTokenBudget { get; init; }
+
     public SecurityProfile Security { get; init; } = new();
+    public AgentMetadata Metadata { get; init; } = new();
     public DateTime RegisteredAt { get; init; } = DateTime.UtcNow;
     public DateTime LastHeartbeat { get; init; } = DateTime.UtcNow;
-    public AgentMetadata Metadata { get; init; } = new();
 }
 
-public record Capability
+public record Skill
 {
     public required string Name { get; init; }
-    public string? Description { get; init; }
-    public string[] RequiredTools { get; init; } = [];
+    public required string Description { get; init; }
+    public IReadOnlyList<string> RequiredTools { get; init; } = [];
     public int? EstimatedMaxTokens { get; init; }
+    public string Version { get; init; } = "1.0.0";
 }
+
+public record ModelSpec
+{
+    public required string Provider { get; init; }   // "openai" | "azure-openai" | "anthropic" | "ollama" | ...
+    public required string Model { get; init; }      // "gpt-4o-mini"
+    public Sampling Sampling { get; init; } = new();
+}
+
+public record Sampling
+{
+    public double? Temperature { get; init; }
+    public double? TopP { get; init; }
+    public int? MaxOutputTokens { get; init; }
+}
+
+public record ToolBinding
+{
+    public required string Name { get; init; }
+    public required ToolKind Kind { get; init; }       // Mcp | Http | InProcess
+    public required string Description { get; init; }
+    public required string ParameterSchema { get; init; }   // raw JSON-schema text
+}
+
+public enum ToolKind { Mcp, Http, InProcess }
 
 public record SecurityProfile
 {
     public string? CertificateThumbprint { get; init; }
     public string? SigilKey { get; init; }
     public bool IsPiiCleared { get; init; }
-    public string[] AllowedTools { get; init; } = [];
+    public IReadOnlyList<string> AllowedTools { get; init; } = [];   // names from ToolBinding
 }
 
 public enum AgentStatus
@@ -282,9 +312,8 @@ public enum AgentStatus
 
 public record AgentMetadata
 {
-    public int? MaxTokenBudget { get; init; }
-    public string? Model { get; init; }
-    public IReadOnlyDictionary<string, string> Tags { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> Tags { get; init; }
+        = new Dictionary<string, string>();
 }
 ```
 
@@ -303,7 +332,7 @@ stateDiagram-v2
     Offline --> [*] : Stale cleanup
 ```
 
-**Weighted routing:** When multiple agents match a capability, the orchestrator selects based on weight. A canary agent at weight 10 gets ~10% of traffic vs. a stable agent at weight 90.
+**Weighted routing:** When multiple agents match a skill, the orchestrator selects based on weight. A canary agent at weight 10 gets ~10% of traffic vs. a stable agent at weight 90.
 
 **Key interface:**
 
@@ -313,7 +342,7 @@ public interface IAgentRegistrationStore
     Task<Result> RegisterAsync(AgentRegistration registration, CancellationToken ct = default);
     Task<Maybe<AgentRegistration>> GetAsync(AgentId agentId, CancellationToken ct = default);
     Task<IReadOnlyList<AgentRegistration>> GetAllAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<AgentRegistration>> FindByCapabilityAsync(string capabilityName, CancellationToken ct = default);
+    Task<IReadOnlyList<AgentRegistration>> FindBySkillAsync(string skillName, CancellationToken ct = default);
     Task<IReadOnlyList<AgentRegistration>> FindByDomainAsync(string domain, CancellationToken ct = default);
     Task<Result> UpdateHeartbeatAsync(AgentId agentId, CancellationToken ct = default);
     Task<Result> UpdateStatusAsync(AgentId agentId, AgentStatus status, CancellationToken ct = default);
@@ -322,7 +351,58 @@ public interface IAgentRegistrationStore
 
 ---
 
-### 4.2 Planner (Intent Decomposition)
+### 4.2 Anatomy of an Agent
+
+A Sigil agent is a configured instance of the SDK runtime. The four pillars are:
+
+1. **The SDK** (`Sigil.Agent.SDK`) — the universal agent runtime. Owns the `/sigil/*` protocol surface, snapshot ingestion, system-prompt composition, model invocation via `IChatClient`, delta production, and lifecycle-hook dispatch.
+2. **A model spec** — provider + model + sampling parameters. The agent constructs its own `IChatClient`; the kernel uses the spec for tier policy and trace tagging.
+3. **A system prompt** — a base prompt plus dynamically composed skill bodies and an auto-rendered tool catalog. The SDK builds the effective prompt per execution step.
+4. **Tools and skills** — the agent's verbs and packaged know-how. Tools are external (MCP servers, HTTP endpoints) or in-process C# delegates. Skills are Claude-style first-class behaviors that the planner routes to.
+
+Hosting is **strict 1:1**: one container, one agent identity. Skill content lives inside the agent container; there is no kernel-curated skill catalog.
+
+#### Container layout
+
+An agent container holds three artifacts:
+
+- `agent.json` — the static manifest (identity, model spec, tool connections, skill index).
+- `skills/*.md` — Claude-style markdown files with YAML frontmatter parsed into the `Skill` record; the body composes into the system prompt at execution time.
+- `Program.cs` — the SDK bootstrap, plus optional in-process tool delegates and lifecycle hooks.
+
+Connection details (HTTP base URL, auth tokens, MCP server addresses) stay agent-side. `ToolBinding` is what the kernel sees; secrets never cross the wire.
+
+#### Execution-step composition
+
+When `/sigil/execute` arrives, the SDK runs:
+
+1. Validate ETag, fetch the step. The step references a skill by `SkillName`.
+2. Hook: `OnSnapshotReceived(snapshot)`.
+3. Compose the system prompt: base prompt body + active skill body + auto-rendered tool catalog scoped to `skill.RequiredTools ∩ Security.AllowedTools`.
+4. Hook: `OnBeforeModelCall(messages, tools)`.
+5. Invoke `IChatClient` with the composed messages and function-call tools.
+6. Hook: `OnAfterModelCall(modelResponse)`.
+7. Drive the tool-call loop until terminal.
+8. Convert the terminal response into a `ContextDelta`.
+9. Hook: `OnDeltaProduced(delta)`.
+10. Return `AgentExecutionResult(delta, logs, metrics)`.
+
+The model sees only tools the active skill needs **and** that the agent's `Security.AllowedTools` permits — narrowing both attack surface and prompt size per step.
+
+#### Lifecycle hooks
+
+Four named optional hooks let the agent author plug in custom behavior without owning the pipeline:
+
+- `OnSnapshotReceived(ctx, snapshot)` — transform inbound state.
+- `OnBeforeModelCall(ctx, messages, tools)` — mutate prompt or tool list.
+- `OnAfterModelCall(ctx, response)` — inspect raw model output.
+- `OnDeltaProduced(ctx, delta)` — filter or tag outbound state.
+
+A hook that throws aborts the step; the failed hook's name appears in `AgentExecutionResult.Logs`.
+
+---
+
+### 4.3 Planner (Intent Decomposition)
 
 The Planner sits between the intent and the execution plan. It decides **which agents** to involve and **in what order**. The `IPlanner` interface lives in `Sigil.Core` — the orchestrator delegates to it without knowing which strategy is active.
 
@@ -331,7 +411,7 @@ The Planner sits between the intent and the execution plan. It decides **which a
 ```mermaid
 flowchart TD
     Intent["Intent received"]
-    Deterministic["DeterministicPlanner\n(capability matching +\nweighted selection)"]
+    Deterministic["DeterministicPlanner\n(skill matching +\nweighted selection)"]
     Check{"Single agent\nmatched?"}
     LLM["LlmPlanner\n(IChatClient decomposition)"]
     Plan["ExecutionPlan"]
@@ -358,7 +438,7 @@ public interface IPlanner
 
 public enum PlannerMode
 {
-    Deterministic,   // Capability match + weighted selection only
+    Deterministic,   // Skill match + weighted selection only
     LlmOnly,         // Always use LLM decomposition
     Hybrid           // Deterministic first, LLM fallback for complex intents
 }
@@ -376,12 +456,12 @@ public class DeterministicPlanner : IPlanner
     {
         var steps = new List<ExecutionStep>();
 
-        // Match by explicit capability or domain
+        // Match by explicit skill or domain
         var candidates = availableAgents
             .Where(a => a.Status == AgentStatus.Healthy)
             .Where(a =>
-                (intent.TargetCapability != null &&
-                 a.Capabilities.Any(c => c.Name == intent.TargetCapability))
+                (intent.SkillName != null &&
+                 a.Skills.Any(s => s.Name == intent.SkillName))
                 ||
                 (intent.TargetDomain != null &&
                  a.Domain == intent.TargetDomain))
@@ -395,7 +475,7 @@ public class DeterministicPlanner : IPlanner
             steps.Add(new ExecutionStep
             {
                 AgentId = selected.AgentId,
-                Capability = intent.TargetCapability ?? selected.Capabilities[0].Name,
+                SkillName = intent.SkillName ?? selected.Skills[0].Name,
                 Input = intent.Parameters
             });
         }
@@ -464,9 +544,9 @@ You are the Sigil Planner — an execution plan builder for an Agent OS.
 ### {{Name}} ({{AgentId}})
 - Domain: {{Domain}}
 - Status: {{Status}}
-- Capabilities:
-{{#each Capabilities}}
-  - {{Name}}: {{Description}} (max tokens: {{EstimatedMaxTokens}})
+- Skills:
+{{#each Skills}}
+  - {{Name}} (v{{Version}}): {{Description}} (max tokens: {{EstimatedMaxTokens}})
     Required tools: {{RequiredTools}}
 {{/each}}
 {{/each}}
@@ -474,7 +554,7 @@ You are the Sigil Planner — an execution plan builder for an Agent OS.
 ## Your Task
 
 Decompose the user's intent into a sequence of steps. Each step
-assigns work to exactly one agent capability. Steps can declare
+assigns work to exactly one agent skill. Steps can declare
 dependencies on prior steps.
 
 Respond ONLY with JSON matching this schema:
@@ -482,7 +562,7 @@ Respond ONLY with JSON matching this schema:
   "steps": [
     {
       "agent_id": "string",
-      "capability": "string",
+      "skill_name": "string",
       "description": "string",
       "input_keys": ["string"],      // context keys this step reads
       "output_keys": ["string"],     // context keys this step writes
@@ -492,7 +572,7 @@ Respond ONLY with JSON matching this schema:
 }
 
 Rules:
-- Only use agents and capabilities from the list above.
+- Only use agents and skills from the list above.
 - Only use agents with Status: Healthy.
 - Minimize steps — don't decompose if one agent can handle it.
 - Declare dependencies correctly so steps can run in parallel when possible.
@@ -589,7 +669,7 @@ Every planner call is an OTel span. The LLM planner records token usage and late
 
 ---
 
-### 4.3 Orchestrator (Snapshot Engine)
+### 4.4 Orchestrator (Snapshot Engine)
 
 The orchestrator receives intents, delegates to the **Planner** for plan creation, bundles context snapshots, dispatches to agents, and commits deltas atomically.
 
@@ -652,7 +732,7 @@ public record Intent
     public string JobId { get; init; } = Guid.NewGuid().ToString("N");
     public string Description { get; init; } = default!;
     public string? TargetDomain { get; init; }
-    public string? TargetCapability { get; init; }
+    public string? SkillName { get; init; }
     public Dictionary<string, object> Parameters { get; init; } = new();
     public string RequestedBy { get; init; } = "system";
 }
@@ -675,7 +755,7 @@ public record ExecutionStep
 {
     public string StepId { get; init; } = Guid.NewGuid().ToString("N");
     public string AgentId { get; init; } = default!;
-    public string Capability { get; init; } = default!;
+    public string SkillName { get; init; } = default!;
     public string? Description { get; init; }
     public Dictionary<string, object> Input { get; init; } = new();
     public string[] InputKeys { get; init; } = [];    // context keys this step reads
@@ -686,7 +766,7 @@ public record ExecutionStep
 
 ---
 
-### 4.3 Atomic Context Bus
+### 4.5 Atomic Context Bus
 
 The Context Bus uses **Optimistic Concurrency** to prevent race conditions when multiple agents finish concurrently.
 
@@ -748,7 +828,7 @@ sequenceDiagram
 
 ---
 
-### 4.4 Zero-Trust Policy Engine
+### 4.6 Zero-Trust Policy Engine
 
 Policies are enforced at **pre-flight** — before the agent ever receives work. The engine also handles PII masking and scoped credential injection.
 
@@ -786,7 +866,7 @@ public record PolicyContext
 {
     public string JobId { get; init; } = default!;
     public string AgentId { get; init; } = default!;
-    public string Capability { get; init; } = default!;
+    public string SkillName { get; init; } = default!;
     public string Action { get; init; } = default!;
     public SecurityProfile AgentSecurity { get; init; } = new();
     public ContextSnapshot? Snapshot { get; init; }
@@ -839,7 +919,7 @@ sequenceDiagram
 
 ---
 
-### 4.5 Security Model (Zero-Trust)
+### 4.7 Security Model (Zero-Trust)
 
 All agent ↔ kernel communication is authenticated and signed.
 
@@ -878,7 +958,7 @@ sequenceDiagram
 
 ---
 
-### 4.6 Storage Abstraction
+### 4.8 Storage Abstraction
 
 The kernel depends on no specific database. All persistence flows through `ISigilStore` plus the new `IAuditStore`.
 
@@ -973,7 +1053,7 @@ builder.AddSigil(sigil =>
 
 ---
 
-### 4.7 Observability
+### 4.9 Observability
 
 Built on OpenTelemetry with structured logging and cost tracking.
 
@@ -1017,7 +1097,7 @@ graph LR
 
 ---
 
-### 4.8 Agent Health Monitor
+### 4.10 Agent Health Monitor
 
 A `BackgroundService` in the kernel that watches remote agents — it does **not** host them.
 
@@ -1043,11 +1123,6 @@ builder.Services.AddSigilAgent(options =>
     options.AgentId = "research-agent";
     options.Name = "Research Agent";
     options.Domain = "research";
-    options.Capabilities =
-    [
-        new Capability { Name = "deep-research", EstimatedMaxTokens = 5000 },
-        new Capability { Name = "summarize", EstimatedMaxTokens = 1000 }
-    ];
     options.Version = "2.0.0";
     options.SigilKernelUrl = "http://sigil-api:8080";
     options.RequireValidation = true;  // Enables /sigil/validate
@@ -1154,7 +1229,7 @@ The UI serves as the operational dashboard — the "desktop environment" of the 
 | View | Purpose |
 |------|---------|
 | **Dashboard** | Overview: active jobs, agent health grid, recent activity, cost tracking |
-| **Agent Catalog** | Registered agents with capabilities, health, security tier, routing weight |
+| **Agent Catalog** | Registered agents with skills, health, security tier, routing weight |
 | **Job Monitor** | Live jobs — trace waterfall, step status, snapshot/delta inspector |
 | **Job History** | Search and replay past jobs with full audit trail |
 | **Checkpoint Queue** | Pending human approvals for write operations |
@@ -1222,7 +1297,9 @@ sigil/
 │   ├── Sigil.Core/                    # Zero-dependency contracts
 │   │   ├── Agents/
 │   │   │   ├── AgentRegistration.cs
-│   │   │   ├── Capability.cs
+│   │   │   ├── Skill.cs
+│   │   │   ├── ModelSpec.cs
+│   │   │   ├── ToolBinding.cs
 │   │   │   ├── SecurityProfile.cs
 │   │   │   └── AgentHealthResponse.cs
 │   │   ├── Protocol/
@@ -1353,7 +1430,7 @@ sigil/
 | Storage | Abstracted `ISigilStore` — Mongo + EF Core | Consumer chooses; kernel has zero storage dependencies |
 | Agent SDK | `Sigil.Agent.SDK` NuGet | Handles registration, heartbeats, JWT refresh, validation, Snapshot/Delta — agent devs only write domain logic |
 | Agent framework | MS Agent Framework (inside agents) | GA 1.0, .NET native, handles LLM plumbing |
-| **Planner** | **`IPlanner` strategy (Deterministic / LLM / Hybrid)** in Core | Provider-agnostic; `IChatClient` for LLM; deterministic has zero LLM dependency |
+| **Planner** | **`IPlanner` strategy (Deterministic / LLM / Hybrid)** in Core | Provider-agnostic; `IChatClient` for LLM; deterministic has zero LLM dependency; routes by skill |
 | LLM abstraction | `IChatClient` (Microsoft.Extensions.AI) | Swap Claude, GPT, Ollama with one line; no Semantic Kernel bloat |
 | Orchestration | Planner-driven — delegates plan creation to `IPlanner` | Orchestrator doesn't care how plans are built; planner is swappable |
 | Observability | OTel + structured logs in Delta + cost metrics | Three-pillar observability with cost tracking |
@@ -1383,7 +1460,7 @@ sigil/
 
 ### Phase 2 — Orchestration, Planner & Snapshot Engine
 - [ ] `IPlanner` interface in Core
-- [ ] `DeterministicPlanner` — capability match + weighted selection
+- [ ] `DeterministicPlanner` — skill match + weighted selection
 - [ ] `LlmPlanner` — `IChatClient` integration, system prompt builder from live registry
 - [ ] `HybridPlanner` — deterministic first, LLM fallback
 - [ ] `PlannerOptions` + `UsePlanner()` on `SigilBuilder`
@@ -1418,7 +1495,7 @@ sigil/
 ### Phase 5 — Angular Frontend
 - [ ] Project scaffolding (standalone, SpartanNG, Tailwind)
 - [ ] Dashboard (agent health grid, active jobs, cost overview)
-- [ ] Agent Catalog (capabilities, security tier, routing weights)
+- [ ] Agent Catalog (skills, security tier, routing weights)
 - [ ] Job Monitor (trace waterfall, snapshot/delta inspector)
 - [ ] Audit Explorer (immutable change history)
 - [ ] Checkpoint Queue
@@ -1446,6 +1523,7 @@ sigil/
 7. **Non-.NET agents** — The HTTP protocol + JWT auth is language-agnostic. Start .NET-only, the protocol ensures future extensibility.
 8. **Snapshot size limits** — What happens when context grows very large? Consider streaming or partial snapshots.
 9. **Delta conflict resolution** — When ETag fails, should the orchestrator auto-retry (with merged state) or fail the step? Start with retry + fresh snapshot.
+- **Kernel-curated skill catalog.** Skills are agent-bundled today. A future kernel-curated catalog (`ISkillStore`) would enable cross-agent reuse, central governance, and skill versioning across the fleet. Surfaced when the SDK runtime lands.
 
 ---
 
