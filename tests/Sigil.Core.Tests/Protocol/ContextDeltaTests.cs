@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Protocol;
 using Xunit;
 
@@ -11,8 +11,8 @@ public class ContextDeltaTests
     {
         var delta = new ContextDelta();
 
-        delta.Updates.Should().BeEmpty();
-        delta.Removals.Should().BeEmpty();
+        delta.Updates.ShouldBeEmpty();
+        delta.Removals.ShouldBeEmpty();
     }
 
     [Fact]
@@ -21,7 +21,7 @@ public class ContextDeltaTests
         var delta = new ContextDelta();
         delta.Updates["key"] = "value";
 
-        delta.Updates.Should().ContainKey("key");
+        delta.Updates.ShouldContainKey("key");
     }
 
     [Fact]
@@ -34,6 +34,6 @@ public class ContextDeltaTests
         var c = new ContextDelta { Updates = shared, Removals = sharedR };
         var d = new ContextDelta { Updates = shared, Removals = sharedR };
 
-        c.Should().Be(d);
+        c.ShouldBe(d);
     }
 }

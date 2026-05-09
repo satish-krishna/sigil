@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Identity;
 using Sigil.Core.Protocol;
 using Xunit;
@@ -14,10 +14,11 @@ public class AgentLogEntryTests
         var entry = new AgentLogEntry();
         var after = DateTime.UtcNow;
 
-        entry.Level.Should().Be("Info");
-        entry.Message.Should().Be("");
-        entry.Timestamp.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
-        entry.Timestamp.Kind.Should().Be(DateTimeKind.Utc);
+        entry.Level.ShouldBe("Info");
+        entry.Message.ShouldBe("");
+        entry.Timestamp.ShouldBeGreaterThanOrEqualTo(before);
+        entry.Timestamp.ShouldBeLessThanOrEqualTo(after);
+        entry.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
     }
 
     [Fact]
@@ -32,9 +33,9 @@ public class AgentLogEntryTests
             Message = "hello"
         };
 
-        entry.Timestamp.Should().Be(ts);
-        entry.AgentId.Should().Be(new AgentId("agent-1"));
-        entry.Level.Should().Be("Warn");
-        entry.Message.Should().Be("hello");
+        entry.Timestamp.ShouldBe(ts);
+        entry.AgentId.ShouldBe(new AgentId("agent-1"));
+        entry.Level.ShouldBe("Warn");
+        entry.Message.ShouldBe("hello");
     }
 }

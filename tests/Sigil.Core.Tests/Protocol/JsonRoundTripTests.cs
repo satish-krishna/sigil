@@ -1,5 +1,5 @@
 using System.Text.Json;
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Audit;
 using Sigil.Core.Identity;
 using Sigil.Core.Protocol;
@@ -23,7 +23,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<AgentId>(json, Options);
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
@@ -38,8 +38,8 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<ContextDelta>(json, Options)!;
 
-        back.Updates.Should().ContainKey("k");
-        back.Removals.Should().Equal("r1", "r2");
+        back.Updates.ShouldContainKey("k");
+        back.Removals.ShouldBe(new[] { "r1", "r2" });
     }
 
     [Fact]
@@ -55,9 +55,9 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<UsageMetrics>(json, Options)!;
 
-        back.PromptTokens.Should().Be(100);
-        back.CompletionTokens.Should().Be(200);
-        back.Duration.Should().Be(TimeSpan.FromSeconds(2.5));
+        back.PromptTokens.ShouldBe(100);
+        back.CompletionTokens.ShouldBe(200);
+        back.Duration.ShouldBe(TimeSpan.FromSeconds(2.5));
     }
 
     [Fact]
@@ -74,10 +74,10 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<AgentLogEntry>(json, Options)!;
 
-        back.Timestamp.Should().Be(original.Timestamp);
-        back.AgentId.Should().Be(original.AgentId);
-        back.Level.Should().Be("Info");
-        back.Message.Should().Be("hello");
+        back.Timestamp.ShouldBe(original.Timestamp);
+        back.AgentId.ShouldBe(original.AgentId);
+        back.Level.ShouldBe("Info");
+        back.Message.ShouldBe("hello");
     }
 
     [Fact]
@@ -97,13 +97,13 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<AuditEntry>(json, Options)!;
 
-        back.AuditId.Should().Be("fixed-audit-id");
-        back.JobId.Should().Be(original.JobId);
-        back.AgentId.Should().Be(original.AgentId);
-        back.StepId.Should().Be(original.StepId);
-        back.Delta.Removals.Should().Equal("k");
-        back.Metrics.PromptTokens.Should().Be(5);
-        back.Timestamp.Should().Be(original.Timestamp);
+        back.AuditId.ShouldBe("fixed-audit-id");
+        back.JobId.ShouldBe(original.JobId);
+        back.AgentId.ShouldBe(original.AgentId);
+        back.StepId.ShouldBe(original.StepId);
+        back.Delta.Removals.ShouldBe(new[] { "k" });
+        back.Metrics.PromptTokens.ShouldBe(5);
+        back.Timestamp.ShouldBe(original.Timestamp);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<JobId>(json, Options);
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<StepId>(json, Options);
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
@@ -136,20 +136,19 @@ public class JsonRoundTripTests
         var json = JsonSerializer.Serialize(original, Options);
         var back = JsonSerializer.Deserialize<ETag>(json, Options);
 
-        back.Should().Be(original);
+        back.ShouldBe(original);
     }
 
     [Fact]
     public void IdentityTypes_RejectJsonNull()
     {
-        Action agentId = () => JsonSerializer.Deserialize<AgentId>("null", Options);
-        Action jobId = () => JsonSerializer.Deserialize<JobId>("null", Options);
-        Action stepId = () => JsonSerializer.Deserialize<StepId>("null", Options);
-        Action eTag = () => JsonSerializer.Deserialize<ETag>("null", Options);
-
-        agentId.Should().Throw<JsonException>().WithMessage("*null*AgentId*");
-        jobId.Should().Throw<JsonException>().WithMessage("*null*JobId*");
-        stepId.Should().Throw<JsonException>().WithMessage("*null*StepId*");
-        eTag.Should().Throw<JsonException>().WithMessage("*null*ETag*");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<AgentId>("null", Options))
+            .Message.ShouldContain("AgentId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<JobId>("null", Options))
+            .Message.ShouldContain("JobId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<StepId>("null", Options))
+            .Message.ShouldContain("StepId");
+        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<ETag>("null", Options))
+            .Message.ShouldContain("ETag");
     }
 }
