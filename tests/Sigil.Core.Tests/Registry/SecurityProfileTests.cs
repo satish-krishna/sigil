@@ -1,5 +1,6 @@
 using Shouldly;
 using Sigil.Core.Registry;
+using Sigil.Core.Security;
 using Xunit;
 
 namespace Sigil.Core.Tests.Registry;
@@ -18,6 +19,12 @@ public class SecurityProfileTests
     }
 
     [Fact]
+    public void Default_Tier_Is_Open()
+    {
+        new SecurityProfile().Tier.ShouldBe(SecurityTier.Open);
+    }
+
+    [Fact]
     public void TwoProfiles_FromIndependentConstruction_AreEqual()
     {
         var a = new SecurityProfile
@@ -25,14 +32,16 @@ public class SecurityProfileTests
             CertificateThumbprint = "abc",
             SigilKey = "key",
             IsPiiCleared = true,
-            AllowedTools = new[] { "tool1", "tool2" }
+            AllowedTools = new[] { "tool1", "tool2" },
+            Tier = SecurityTier.Trusted
         };
         var b = new SecurityProfile
         {
             CertificateThumbprint = "abc",
             SigilKey = "key",
             IsPiiCleared = true,
-            AllowedTools = new[] { "tool1", "tool2" }
+            AllowedTools = new[] { "tool1", "tool2" },
+            Tier = SecurityTier.Trusted
         };
 
         a.ShouldBe(b);
@@ -44,6 +53,15 @@ public class SecurityProfileTests
     {
         var a = new SecurityProfile { AllowedTools = new[] { "tool1" } };
         var b = new SecurityProfile { AllowedTools = new[] { "tool2" } };
+
+        a.ShouldNotBe(b);
+    }
+
+    [Fact]
+    public void TwoProfiles_DifferingOnlyInTier_AreNotEqual()
+    {
+        var a = new SecurityProfile { Tier = SecurityTier.Open };
+        var b = new SecurityProfile { Tier = SecurityTier.Standard };
 
         a.ShouldNotBe(b);
     }
