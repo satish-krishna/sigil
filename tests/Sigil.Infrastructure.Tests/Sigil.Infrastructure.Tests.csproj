@@ -12,6 +12,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Shouldly" />
+    <!--
+      Microsoft.Extensions.Configuration ships the in-memory provider
+      (AddInMemoryCollection) inside this package as of .NET 9+. There is no
+      separate Microsoft.Extensions.Configuration.Memory package on NuGet.
+    -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

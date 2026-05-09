@@ -63,12 +63,13 @@ public sealed class SigilKeyValidator : ISigilSecurity
             return CryptographicOperations.FixedTimeEquals(presentedBytes, expectedBytes);
 
         // Lengths differ: still run a constant-time comparison against a same-length
-        // sentinel buffer so timing doesn't leak which side was longer. Result is
-        // discarded; caller treats this as a mismatch.
+        // zero buffer so timing doesn't leak which side was longer. Result is
+        // discarded; caller treats this as a mismatch. We don't copy the secret
+        // bytes — a fresh zero-filled buffer is enough to satisfy the equal-length
+        // precondition of FixedTimeEquals.
         var longer = presentedBytes.Length > expectedBytes.Length ? presentedBytes : expectedBytes;
-        var sentinel = new byte[longer.Length];
-        Buffer.BlockCopy(longer, 0, sentinel, 0, longer.Length);
-        _ = CryptographicOperations.FixedTimeEquals(longer, sentinel);
+        var zeroes = new byte[longer.Length];
+        _ = CryptographicOperations.FixedTimeEquals(longer, zeroes);
         return false;
     }
 }

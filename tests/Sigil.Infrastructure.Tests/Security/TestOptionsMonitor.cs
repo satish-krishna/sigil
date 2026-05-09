@@ -14,5 +14,11 @@ internal sealed class TestOptionsMonitor<T> : IOptionsMonitor<T>
 
     public T Get(string? name) => CurrentValue;
 
-    public IDisposable? OnChange(Action<T, string?> listener) => null;
+    public IDisposable? OnChange(Action<T, string?> listener) => NoopDisposable.Instance;
+
+    private sealed class NoopDisposable : IDisposable
+    {
+        public static readonly NoopDisposable Instance = new();
+        public void Dispose() { }
+    }
 }
