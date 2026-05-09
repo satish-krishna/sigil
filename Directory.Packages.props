@@ -13,6 +13,17 @@
     <PackageVersion Include="MongoDB.Driver" Version="3.8.0" />
   </ItemGroup>
 
+  <!-- Microsoft.Extensions.* (pinned to match transitive requirements) -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.5" />
+  </ItemGroup>
+
   <!-- Test-only packages -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
