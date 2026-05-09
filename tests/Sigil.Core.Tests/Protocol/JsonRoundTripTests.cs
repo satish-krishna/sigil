@@ -142,13 +142,20 @@ public class JsonRoundTripTests
     [Fact]
     public void IdentityTypes_RejectJsonNull()
     {
-        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<AgentId>("null", Options))
-            .Message.ShouldContain("AgentId");
-        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<JobId>("null", Options))
-            .Message.ShouldContain("JobId");
-        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<StepId>("null", Options))
-            .Message.ShouldContain("StepId");
-        Should.Throw<JsonException>(() => JsonSerializer.Deserialize<ETag>("null", Options))
-            .Message.ShouldContain("ETag");
+        var agentEx = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<AgentId>("null", Options));
+        agentEx.Message.ShouldContain("null");
+        agentEx.Message.ShouldContain("AgentId");
+
+        var jobEx = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<JobId>("null", Options));
+        jobEx.Message.ShouldContain("null");
+        jobEx.Message.ShouldContain("JobId");
+
+        var stepEx = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<StepId>("null", Options));
+        stepEx.Message.ShouldContain("null");
+        stepEx.Message.ShouldContain("StepId");
+
+        var etagEx = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<ETag>("null", Options));
+        etagEx.Message.ShouldContain("null");
+        etagEx.Message.ShouldContain("ETag");
     }
 }
