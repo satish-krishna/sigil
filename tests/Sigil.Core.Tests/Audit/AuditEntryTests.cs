@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Audit;
 using Sigil.Core.Identity;
 using Sigil.Core.Protocol;
@@ -15,10 +15,11 @@ public class AuditEntryTests
         var entry = new AuditEntry();
         var after = DateTime.UtcNow;
 
-        entry.AuditId.Should().NotBeNullOrWhiteSpace();
-        entry.AuditId.Length.Should().Be(32); // Guid "N" format
-        entry.Timestamp.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
-        entry.Timestamp.Kind.Should().Be(DateTimeKind.Utc);
+        entry.AuditId.ShouldNotBeNullOrWhiteSpace();
+        entry.AuditId.Length.ShouldBe(32); // Guid "N" format
+        entry.Timestamp.ShouldBeGreaterThanOrEqualTo(before);
+        entry.Timestamp.ShouldBeLessThanOrEqualTo(after);
+        entry.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
     }
 
     [Fact]
@@ -27,7 +28,7 @@ public class AuditEntryTests
         var a = new AuditEntry();
         var b = new AuditEntry();
 
-        a.AuditId.Should().NotBe(b.AuditId);
+        a.AuditId.ShouldNotBe(b.AuditId);
     }
 
     [Fact]
@@ -48,7 +49,7 @@ public class AuditEntryTests
         };
         var b = a with { };
 
-        a.Should().Be(b);
+        a.ShouldBe(b);
     }
 
     [Fact]
@@ -57,6 +58,6 @@ public class AuditEntryTests
         var a = new AuditEntry { AuditId = "x", JobId = new JobId("j1") };
         var b = a with { JobId = new JobId("j2") };
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 }

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Protocol;
 using Xunit;
 
@@ -11,10 +11,10 @@ public class UsageMetricsTests
     {
         var m = new UsageMetrics();
 
-        m.PromptTokens.Should().Be(0);
-        m.CompletionTokens.Should().Be(0);
-        m.Duration.Should().Be(TimeSpan.Zero);
-        m.Custom.Should().BeEmpty();
+        m.PromptTokens.ShouldBe(0);
+        m.CompletionTokens.ShouldBe(0);
+        m.Duration.ShouldBe(TimeSpan.Zero);
+        m.Custom.ShouldBeEmpty();
     }
 
     [Fact]
@@ -28,9 +28,9 @@ public class UsageMetricsTests
             Custom = new Dictionary<string, object> { ["model"] = "claude-sonnet-4-6" }
         };
 
-        m.PromptTokens.Should().Be(10);
-        m.CompletionTokens.Should().Be(20);
-        m.Duration.Should().Be(TimeSpan.FromSeconds(1.5));
-        m.Custom.Should().ContainKey("model");
+        m.PromptTokens.ShouldBe(10);
+        m.CompletionTokens.ShouldBe(20);
+        m.Duration.ShouldBe(TimeSpan.FromSeconds(1.5));
+        m.Custom.Keys.ShouldContain("model");
     }
 }

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sigil.Core.Identity;
 using Xunit;
 
@@ -22,8 +22,8 @@ public class IdentityTypesTests
         var a = make("x");
         var b = make("x");
 
-        a.Should().Be(b);
-        a.GetHashCode().Should().Be(b.GetHashCode());
+        a.ShouldBe(b);
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 
     [Theory]
@@ -33,7 +33,7 @@ public class IdentityTypesTests
         var a = make("x");
         var b = make("y");
 
-        a.Should().NotBe(b);
+        a.ShouldNotBe(b);
     }
 
     [Fact]
@@ -41,24 +41,24 @@ public class IdentityTypesTests
     {
         var a = new AgentId("agent-xyz");
 
-        a.ToString().Should().Be("agent-xyz");
+        a.ToString().ShouldBe("agent-xyz");
     }
 
     [Fact]
     public void JobId_ToString_ReturnsRawValue()
     {
-        new JobId("job-1").ToString().Should().Be("job-1");
+        new JobId("job-1").ToString().ShouldBe("job-1");
     }
 
     [Fact]
     public void StepId_ToString_ReturnsRawValue()
     {
-        new StepId("step-1").ToString().Should().Be("step-1");
+        new StepId("step-1").ToString().ShouldBe("step-1");
     }
 
     [Fact]
     public void ETag_ToString_ReturnsRawValue()
     {
-        new ETag("abc123").ToString().Should().Be("abc123");
+        new ETag("abc123").ToString().ShouldBe("abc123");
     }
 }

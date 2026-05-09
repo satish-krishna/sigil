@@ -12,8 +12,8 @@ public interface IAgentRegistrationStore
 
     Task<IReadOnlyList<AgentRegistration>> GetAllAsync(CancellationToken ct = default);
 
-    Task<IReadOnlyList<AgentRegistration>> FindByCapabilityAsync(
-        string capabilityName, CancellationToken ct = default);
+    Task<IReadOnlyList<AgentRegistration>> FindBySkillAsync(
+        string skillName, CancellationToken ct = default);
 
     Task<IReadOnlyList<AgentRegistration>> FindByDomainAsync(
         string domain, CancellationToken ct = default);

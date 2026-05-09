@@ -33,7 +33,7 @@ The kernel sits between an external dispatcher (UI, API, or scheduler) and a fle
 
 - **External dispatch** — Intents from a UI, REST call, or schedule.
 - **Orchestrator & Job Manager** — Builds the execution plan (via `IPlanner`), schedules steps, and owns the task graph.
-- **Agent Registry** — Capability and version catalog with routing weights.
+- **Agent Registry** — Skill and version catalog with routing weights.
 - **Policy Engine** — Pre-flight guardrails: token budgets, tool access, rate limits, human-checkpoint gates.
 - **Context Bus & Audit Log** — Atomic state with ETags; every delta is audited immutably.
 - **Secure Agent Gateway** — mTLS + JWT, signed requests, Polly resilience.
@@ -50,7 +50,7 @@ See [`.bob/docs/sigil-architecture-blueprint.md`](.bob/docs/sigil-architecture-b
 - **LLM** — `IChatClient` (Microsoft.Extensions.AI) — swap Claude, OpenAI, Azure, or Ollama with one line
 - **Resilience** — Polly (circuit breaker, timeout, retry) in the Secure Gateway
 - **Observability** — OpenTelemetry (`System.Diagnostics.Activity`)
-- **Agent runtime** — Microsoft Agent Framework (GA 1.0) inside each remote container
+- **Agent runtime** — `Sigil.Agent.SDK` configured by JSON manifest + `skills/*.md` + optional C# hooks/in-process tools, riding on Microsoft Agent Framework (GA 1.0) inside each remote container
 - **Frontend** — Angular (standalone components, signals), SpartanNG, Tailwind (later phase)
 
 ---
@@ -90,7 +90,7 @@ sigil/
 - [ ] Agent Protocol types (Package, Result, Validation)
 - [ ] MongoDB and EF Core storage providers
 - [ ] Secure Agent Registry
-- [ ] `Sigil.Agent.SDK` (registration, heartbeat, snapshot/delta)
+- [ ] `Sigil.Agent.SDK` (manifest loader, skill composition, lifecycle hooks, snapshot/delta)
 - [ ] Secure Gateway (JWT + Polly)
 - [ ] Echo agent + Docker Compose
 
