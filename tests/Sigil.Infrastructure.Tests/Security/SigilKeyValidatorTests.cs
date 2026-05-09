@@ -36,4 +36,63 @@ public class SigilKeyValidatorTests
         result.Value.AgentId.ShouldBe(new AgentId("echo-agent"));
         result.Value.Tier.ShouldBe(SecurityTier.Open);
     }
+
+    [Fact]
+    public async Task MissingKey_Returns_MissingKey()
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials { AgentId = new AgentId("echo-agent"), SigilKey = null };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.MissingKey);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t\n")]
+    public async Task WhitespaceKey_Returns_MissingKey(string presented)
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials { AgentId = new AgentId("echo-agent"), SigilKey = presented };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.MissingKey);
+    }
+
+    [Fact]
+    public async Task UnknownAgent_Returns_UnknownAgent()
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("research-agent"),
+            SigilKey = "dev-key-echo"
+        };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.UnknownAgent);
+    }
+
+    [Fact]
+    public async Task WrongKey_Returns_KeyMismatch()
+    {
+        var validator = MakeValidator(OpenWithKey("echo-agent", "dev-key-echo"));
+        var creds = new SigilCredentials
+        {
+            AgentId = new AgentId("echo-agent"),
+            SigilKey = "WRONG"
+        };
+
+        var result = await validator.AuthenticateAsync(creds, SecurityTier.Open);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilSecurityErrors.KeyMismatch);
+    }
 }
