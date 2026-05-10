@@ -36,7 +36,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 |---|---|---|---|
 | ✅ | [#18](https://github.com/satish-krishna/sigil/issues/18) | Central Package Management | Land first to keep package versions consistent across all subsequent projects |
 | ✅ | [#3](https://github.com/satish-krishna/sigil/issues/3) | Agent protocol types (`AgentTask`, `AgentExecutionPackage`, `ValidationRequest`/`Result`) | Required by gateway and SDK |
-| ⬜ | [#4](https://github.com/satish-krishna/sigil/issues/4) | Sigil-Key validation (Open tier) | Required by gateway and SDK |
+| ✅ | [#4](https://github.com/satish-krishna/sigil/issues/4) | Sigil-Key validation (Open tier) | Required by gateway and SDK |
 
 ---
 
@@ -54,7 +54,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 | Status | Issue | Title | Depends on |
 |---|---|---|---|
 | ⬜ | [#7](https://github.com/satish-krishna/sigil/issues/7) | Secure Agent Registry with weighted routing | #2, #4 |
-| ⬜ | [#10](https://github.com/satish-krishna/sigil/issues/10) | Secure Gateway (JWT-signed dispatch + Polly) | #3, #4 |
+| ✅ | [#10](https://github.com/satish-krishna/sigil/issues/10) | Secure Gateway (JWT-signed dispatch + Polly) | #3, #4 |
 | ⬜ | [#13](https://github.com/satish-krishna/sigil/issues/13) | FastEndpoints — agent lifecycle + intent | #7, #10 |
 | ⬜ | [#11](https://github.com/satish-krishna/sigil/issues/11) | Agent Health Monitor | #7, #10 |
 
