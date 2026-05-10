@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Text.Json;
 using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Logging;
@@ -43,25 +44,83 @@ public sealed class AgentGateway : IAgentGateway
         AgentRegistration agent,
         ValidationRequest request,
         CancellationToken ct = default)
-    {
-        var pre = Preflight(agent);
-        if (pre.IsFailure)
-            return Task.FromResult(Result.Failure<ValidationResult>(pre.Error));
-
-        // HTTP path implemented in Task 9.
-        throw new NotImplementedException();
-    }
+        => DispatchAsync<ValidationRequest, ValidationResult>(
+            agent, request, subPath: "/sigil/validate", method: "validate", ct);
 
     public Task<Result<AgentExecutionResult>> ExecuteAsync(
         AgentRegistration agent,
         AgentExecutionPackage package,
         CancellationToken ct = default)
+        => DispatchAsync<AgentExecutionPackage, AgentExecutionResult>(
+            agent, package, subPath: "/sigil/execute", method: "execute", ct);
+
+    private async Task<Result<TResponse>> DispatchAsync<TRequest, TResponse>(
+        AgentRegistration agent, TRequest body, string subPath, string method, CancellationToken ct)
     {
         var pre = Preflight(agent);
         if (pre.IsFailure)
-            return Task.FromResult(Result.Failure<AgentExecutionResult>(pre.Error));
+            return Result.Failure<TResponse>(pre.Error);
 
-        throw new NotImplementedException();
+        var requestUri = ComposeEndpoint(pre.Value.BaseUri, subPath);
+        var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
+        request.Headers.Add("X-Sigil-Key", pre.Value.OutboundKey);
+        request.Content = JsonContent.Create(body, options: JsonOptions);
+
+        try
+        {
+            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+
+            return await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return Result.Failure<TResponse>(SigilGatewayErrors.Cancelled);
+        }
+        catch (HttpRequestException)
+        {
+            return Result.Failure<TResponse>(SigilGatewayErrors.TransportError);
+        }
+    }
+
+    private static Uri ComposeEndpoint(Uri baseUri, string subPath)
+    {
+        var basePath = baseUri.AbsoluteUri.TrimEnd('/');
+        return new Uri(basePath + subPath, UriKind.Absolute);
+    }
+
+    private static async Task<Result<TResponse>> MapResponseAsync<TResponse>(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+        var status = (int)response.StatusCode;
+
+        if (status >= 200 && status < 300)
+        {
+            try
+            {
+                var deserialized = await response.Content
+                    .ReadFromJsonAsync<TResponse>(JsonOptions, ct)
+                    .ConfigureAwait(false);
+                if (deserialized is null)
+                    return Result.Failure<TResponse>(SigilGatewayErrors.ProtocolError);
+                return Result.Success(deserialized);
+            }
+            catch (JsonException)
+            {
+                return Result.Failure<TResponse>(SigilGatewayErrors.ProtocolError);
+            }
+            catch (NotSupportedException)
+            {
+                return Result.Failure<TResponse>(SigilGatewayErrors.ProtocolError);
+            }
+        }
+
+        return status switch
+        {
+            401 or 403 => Result.Failure<TResponse>(SigilGatewayErrors.AgentRejectedCredentials),
+            404        => Result.Failure<TResponse>(SigilGatewayErrors.AgentNotFound),
+            >= 400 and < 500 => Result.Failure<TResponse>(SigilGatewayErrors.AgentRejected),
+            _ => Result.Failure<TResponse>(SigilGatewayErrors.AgentError),
+        };
     }
 
     private Result<PreflightContext> Preflight(AgentRegistration agent)
