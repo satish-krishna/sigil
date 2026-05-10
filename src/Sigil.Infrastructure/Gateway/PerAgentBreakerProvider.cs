@@ -7,9 +7,11 @@ using Polly.Registry;
 namespace Sigil.Infrastructure.Gateway;
 
 /// <summary>
-/// A <see cref="ResiliencePipelineProvider{TKey}"/> that lazily creates one circuit-breaker
-/// pipeline per agent key. Pipelines are cached after first access — each agent gets its own
-/// independent breaker state so a flapping agent cannot trip other agents' breakers.
+/// Lazily creates one circuit-breaker pipeline per agent key. Pipeline
+/// configuration is snapshotted from <see cref="AgentGatewayOptions"/> at
+/// construction time — runtime changes to breaker thresholds (failure ratio,
+/// throughput, sampling/break duration) require an application restart to
+/// take effect on existing or future pipelines.
 /// </summary>
 internal sealed class PerAgentBreakerProvider : ResiliencePipelineProvider<string>
 {

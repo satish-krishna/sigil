@@ -86,6 +86,10 @@ public sealed class AgentGateway : IAgentGateway
                 (Http: _http, Request: request),
                 timeoutCts.Token).ConfigureAwait(false);
 
+            // Pass the caller's ct so a long-running body read can be cancelled by the
+            // caller giving up. If the per-method timeout fires while the body is
+            // being read, the linked CTS surfaces an OperationCanceledException that
+            // the outer catch filter classifies as Timeout (not Cancelled).
             return await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
         }
         catch (BrokenCircuitException)

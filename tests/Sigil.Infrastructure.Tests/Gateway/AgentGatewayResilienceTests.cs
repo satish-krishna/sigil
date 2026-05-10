@@ -128,6 +128,11 @@ public class AgentGatewayResilienceTests
         for (int i = 0; i < SickCallsToTripBreaker; i++)
             await gateway.ValidateAsync(agentA, SampleRequest());
 
+        // Pin the actual attempt count so a future Polly behavior change produces
+        // a clean Shouldly failure rather than an opaque "queue an EnqueueResponse"
+        // exception when the shared response queue is consumed unexpectedly.
+        handler.Requests.Count.ShouldBe(SickCallsToTripBreaker * AttemptsPerDispatch);
+
         // Next call to agent-a should fail fast with circuit-open
         var aFinal = await gateway.ValidateAsync(agentA, SampleRequest());
         aFinal.IsFailure.ShouldBeTrue();
