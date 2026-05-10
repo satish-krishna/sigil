@@ -69,5 +69,9 @@ internal sealed class AuditEntryConfig : IEntityTypeConfiguration<AuditEntry>
             custom.Metadata.SetValueConverter(JsonValueConverters.ObjectMapConverter());
             custom.Metadata.SetValueComparer(JsonValueConverters.ObjectMapComparer());
         });
+
+        e.HasIndex(x => x.JobId).HasDatabaseName("ix_audit_entries_job_id");
+        e.HasIndex(x => x.AgentId).HasDatabaseName("ix_audit_entries_agent_id");
+        e.HasIndex(x => x.Timestamp).HasDatabaseName("ix_audit_entries_timestamp");
     }
 }

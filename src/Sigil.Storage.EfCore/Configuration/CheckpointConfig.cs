@@ -30,5 +30,7 @@ internal sealed class CheckpointConfig : IEntityTypeConfiguration<Checkpoint>
         e.Property(x => x.ResolvedBy).HasColumnName("resolved_by").HasColumnType("text");
         e.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
         e.Property(x => x.ResolvedAt).HasColumnName("resolved_at").HasColumnType("timestamptz");
+
+        e.HasIndex(x => x.JobId).HasDatabaseName("ix_checkpoints_job_id");
     }
 }
