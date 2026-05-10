@@ -58,9 +58,20 @@ public sealed class AgentGateway : IAgentGateway
     private async Task<Result<TResponse>> DispatchAsync<TRequest, TResponse>(
         AgentRegistration agent, TRequest body, string subPath, string method, CancellationToken ct)
     {
+        using var activity = ActivitySource.StartActivity($"agent.{method}", ActivityKind.Client);
+        activity?.SetTag("sigil.agent.id", agent.AgentId.Value);
+        activity?.SetTag("sigil.agent.endpoint", agent.EndpointUrl);
+        activity?.SetTag("sigil.agent.tier", agent.Security.Tier.ToString());
+        activity?.SetTag("sigil.gateway.method", method);
+        SetTaskTags(activity, body);
+
         var pre = Preflight(agent);
         if (pre.IsFailure)
+        {
+            activity?.SetTag("sigil.gateway.error_code", pre.Error);
+            activity?.SetStatus(ActivityStatusCode.Error);
             return Result.Failure<TResponse>(pre.Error);
+        }
 
         _logger.LogDebug("Gateway dispatch {Method} for {AgentId}", method, agent.AgentId.Value);
 
@@ -86,28 +97,62 @@ public sealed class AgentGateway : IAgentGateway
                 (Http: _http, Request: request),
                 timeoutCts.Token).ConfigureAwait(false);
 
+            activity?.SetTag("http.response.status_code", (int)response.StatusCode);
+
             // Pass the caller's ct so a long-running body read can be cancelled by the
             // caller giving up. If the per-method timeout fires while the body is
             // being read, the linked CTS surfaces an OperationCanceledException that
             // the outer catch filter classifies as Timeout (not Cancelled).
-            return await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
+            var outcome = await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
+            if (outcome.IsFailure)
+            {
+                activity?.SetTag("sigil.gateway.error_code", outcome.Error);
+                activity?.SetStatus(ActivityStatusCode.Error);
+            }
+            else
+            {
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            return outcome;
         }
         catch (BrokenCircuitException)
         {
-            return Result.Failure<TResponse>(SigilGatewayErrors.CircuitOpen);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.CircuitOpen);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
-            // The per-method timeout fired; the caller's token is still live.
-            return Result.Failure<TResponse>(SigilGatewayErrors.Timeout);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.Timeout);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            return Result.Failure<TResponse>(SigilGatewayErrors.Cancelled);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.Cancelled);
         }
         catch (HttpRequestException)
         {
-            return Result.Failure<TResponse>(SigilGatewayErrors.TransportError);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.TransportError);
+        }
+    }
+
+    private static Result<T> FailWith<T>(Activity? activity, string code)
+    {
+        activity?.SetTag("sigil.gateway.error_code", code);
+        activity?.SetStatus(ActivityStatusCode.Error);
+        return Result.Failure<T>(code);
+    }
+
+    private static void SetTaskTags<TBody>(Activity? activity, TBody body)
+    {
+        if (activity is null) return;
+        switch (body)
+        {
+            case ValidationRequest vr:
+                activity.SetTag("sigil.job.id",  vr.Task.JobId.Value);
+                activity.SetTag("sigil.step.id", vr.Task.StepId.Value);
+                break;
+            case AgentExecutionPackage pkg:
+                activity.SetTag("sigil.job.id",  pkg.Task.JobId.Value);
+                activity.SetTag("sigil.step.id", pkg.Task.StepId.Value);
+                break;
         }
     }
 
