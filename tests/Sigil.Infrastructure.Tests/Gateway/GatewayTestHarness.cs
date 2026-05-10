@@ -1,5 +1,9 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Polly.Registry;
+using Sigil.Core.Gateway;
 using Sigil.Core.Identity;
 using Sigil.Core.Registry;
 using Sigil.Core.Security;
@@ -62,5 +66,52 @@ internal static class GatewayTestHarness
             Model = new ModelSpec { Provider = "test", Model = "test-model" },
             Security = new SecurityProfile { Tier = tier }
         };
+    }
+
+    /// <summary>
+    /// Builds an IAgentGateway via the full DI pipeline (AddSigilSecurity + AddAgentGateway),
+    /// with the FakeHttpMessageHandler injected as the primary handler. The named resilience
+    /// handlers and per-agent breaker registry are active.
+    /// </summary>
+    public static (IAgentGateway Gateway, ServiceProvider Provider) WithResilience(
+        FakeHttpMessageHandler handler,
+        SigilSecurityOptions? security = null,
+        AgentGatewayOptions? gateway = null)
+    {
+        security ??= new SigilSecurityOptions { Mode = SecurityTier.Open };
+        gateway  ??= new AgentGatewayOptions();
+
+        var configValues = new Dictionary<string, string?>
+        {
+            ["Security:Mode"] = security.Mode.ToString(),
+            ["Gateway:ValidateTimeout"] = gateway.ValidateTimeout.ToString(),
+            ["Gateway:ExecuteTimeout"]  = gateway.ExecuteTimeout.ToString(),
+            ["Gateway:MaxRetryAttempts"] = gateway.MaxRetryAttempts.ToString(),
+            ["Gateway:BaseRetryDelay"]   = gateway.BaseRetryDelay.ToString(),
+            ["Gateway:CircuitBreakerFailureRatio"]      = gateway.CircuitBreakerFailureRatio.ToString(),
+            ["Gateway:CircuitBreakerMinimumThroughput"] = gateway.CircuitBreakerMinimumThroughput.ToString(),
+            ["Gateway:CircuitBreakerSamplingDuration"]  = gateway.CircuitBreakerSamplingDuration.ToString(),
+            ["Gateway:CircuitBreakerBreakDuration"]     = gateway.CircuitBreakerBreakDuration.ToString(),
+        };
+        foreach (var (id, key) in security.OpenTier.Keys)
+            configValues[$"Security:OpenTier:Keys:{id}"] = key;
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configValues)
+            .Build();
+
+        var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+
+        services.AddSigilSecurity(configuration);
+        services.AddAgentGateway(configuration);
+
+        // Replace the primary handler on the AgentGateway typed-client with the fake.
+        services.AddHttpClient<AgentGateway>()
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+
+        var provider = services.BuildServiceProvider();
+        var resolved = provider.GetRequiredService<IAgentGateway>();
+        return (resolved, provider);
     }
 }
