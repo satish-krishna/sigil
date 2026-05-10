@@ -26,7 +26,14 @@ public static class ServiceCollectionExtensions
         // Per-method timeouts (validate: 5 s, execute: 120 s) are applied by the gateway
         // itself via CancellationTokenSource.CancelAfter linked to the caller's token.
         // Per-agent circuit breaking is handled separately by PerAgentBreakerProvider.
-        var httpClientBuilder = services.AddHttpClient<AgentGateway>();
+        var httpClientBuilder = services.AddHttpClient<AgentGateway>(client =>
+        {
+            // Gateway owns dispatch timeout via CancellationTokenSource.CancelAfter linked
+            // to the caller's token. Default HttpClient.Timeout (100s) is less than the
+            // default ExecuteTimeout (120s) and would fire with a token matching neither
+            // of our catch filters — let the gateway-managed CTS be the single source of truth.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
         httpClientBuilder.AddResilienceHandler("agent-retry", BuildRetryPipeline);
 
         // PerAgentBreakerProvider is registered as the concrete singleton, then

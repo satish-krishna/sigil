@@ -19,10 +19,10 @@ public class AgentGatewayResilienceTests
 
     // One resilience handler (agent-retry) is registered on the typed HttpClient — retry
     // only, no timeout. Per-method timeouts are applied by the gateway via a linked
-    // CancellationTokenSource. A single transient dispatch makes 1 + MaxRetryAttempts=2
-    // HTTP calls total. The per-agent circuit breaker wraps _http.SendAsync (the full
+    // CancellationTokenSource. A single transient dispatch makes 1 initial + MaxRetryAttempts(=2)
+    // retries = 3 HTTP calls total. The per-agent circuit breaker wraps _http.SendAsync (the full
     // typed-client pipeline), so it observes ONE outcome per breaker.ExecuteAsync call.
-    private const int AttemptsPerDispatch = 3; // 1 + MaxRetryAttempts=2
+    private const int AttemptsPerDispatch = 3; // 1 initial + MaxRetryAttempts(=2) retries
 
     private static SigilSecurityOptions OpenWith(params (string AgentId, string Key)[] entries)
     {

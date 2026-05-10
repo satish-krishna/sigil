@@ -100,11 +100,10 @@ public sealed class AgentGateway : IAgentGateway
 
             activity?.SetTag("http.response.status_code", (int)response.StatusCode);
 
-            // Pass the caller's ct so a long-running body read can be cancelled by the
-            // caller giving up. If the per-method timeout fires while the body is
-            // being read, the linked CTS surfaces an OperationCanceledException that
-            // the outer catch filter classifies as Timeout (not Cancelled).
-            var outcome = await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
+            // Use the linked timeout token so a slow body read is bounded by the per-method
+            // timeout. The outer catch filter classifies a CTS-fired OCE as Timeout (not
+            // Cancelled) when ct itself is still live.
+            var outcome = await MapResponseAsync<TResponse>(response, timeoutCts.Token).ConfigureAwait(false);
             if (outcome.IsFailure)
             {
                 activity?.SetTag("sigil.gateway.error_code", outcome.Error);
@@ -135,6 +134,14 @@ public sealed class AgentGateway : IAgentGateway
         catch (HttpRequestException)
         {
             return FailWith<TResponse>(activity, SigilGatewayErrors.TransportError, agent, method);
+        }
+        catch (OperationCanceledException)
+        {
+            // Belt-and-suspenders: HttpClient.Timeout is Timeout.InfiniteTimeSpan and the
+            // two filtered OCE catches above cover the gateway/caller token paths. Any
+            // remaining OCE is a framework anomaly; surface it as Cancelled rather than
+            // letting it escape and break the Result<T> contract.
+            return FailWith<TResponse>(activity, SigilGatewayErrors.Cancelled, agent, method);
         }
     }
 
@@ -236,6 +243,9 @@ public sealed class AgentGateway : IAgentGateway
 
     private Result<PreflightContext> Preflight(AgentRegistration agent)
     {
+        if (_security.CurrentValue.Mode != SecurityTier.Open)
+            return Result.Failure<PreflightContext>(SigilGatewayErrors.TierNotSupported);
+
         if (agent.Security.Tier != SecurityTier.Open)
             return Result.Failure<PreflightContext>(SigilGatewayErrors.TierNotSupported);
 

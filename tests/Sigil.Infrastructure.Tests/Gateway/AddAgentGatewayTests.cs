@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,25 @@ public class AddAgentGatewayTests
         opts.ValidateTimeout.ShouldBe(TimeSpan.FromSeconds(3));
         opts.ExecuteTimeout.ShouldBe(TimeSpan.FromMinutes(1));
         opts.MaxRetryAttempts.ShouldBe(5);
+    }
+
+    [Fact]
+    public void HttpClient_Has_Infinite_Timeout_So_Gateway_Manages_Timeout_Itself()
+    {
+        var config = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Security:Mode"] = "Open"
+        });
+
+        using var provider = NewServices()
+            .AddSigilSecurity(config)
+            .AddAgentGateway(config)
+            .BuildServiceProvider();
+
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+        var http = factory.CreateClient(typeof(AgentGateway).Name);
+
+        http.Timeout.ShouldBe(Timeout.InfiniteTimeSpan);
     }
 
     [Fact]
