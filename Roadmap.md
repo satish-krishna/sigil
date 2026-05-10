@@ -44,7 +44,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 
 | Status | Issue | Title |
 |---|---|---|
-| ⬜ | [#6](https://github.com/satish-krishna/sigil/issues/6) | EF Core provider + initial migration *(used by v1 Docker Compose)* |
+| ✅ | [#6](https://github.com/satish-krishna/sigil/issues/6) | EF Core provider + initial migration *(used by v1 Docker Compose)* |
 | ⬜ | [#5](https://github.com/satish-krishna/sigil/issues/5) | MongoDB provider with ETag concurrency |
 
 ---
