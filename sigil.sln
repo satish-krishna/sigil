@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sigil.Core.Tests", "tests\S
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sigil.Infrastructure.Tests", "tests\Sigil.Infrastructure.Tests\Sigil.Infrastructure.Tests.csproj", "{1848F9FB-4BFC-41D6-B547-ED4DEB35B9DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sigil.Storage.EfCore.Tests", "tests\Sigil.Storage.EfCore.Tests\Sigil.Storage.EfCore.Tests.csproj", "{F230087C-590D-4A3A-A3F9-741239178B08}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,6 +72,10 @@ Global
 		{1848F9FB-4BFC-41D6-B547-ED4DEB35B9DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1848F9FB-4BFC-41D6-B547-ED4DEB35B9DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1848F9FB-4BFC-41D6-B547-ED4DEB35B9DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F230087C-590D-4A3A-A3F9-741239178B08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F230087C-590D-4A3A-A3F9-741239178B08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F230087C-590D-4A3A-A3F9-741239178B08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F230087C-590D-4A3A-A3F9-741239178B08}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{EFE39E9B-9CA0-4568-9B75-822F570771BC} = {98200BEF-2E9E-4BB6-8AA9-AD8FC9117143}
@@ -81,5 +87,6 @@ Global
 		{6B4D9E4C-8C4A-443A-8E33-6A7575A1B317} = {98200BEF-2E9E-4BB6-8AA9-AD8FC9117143}
 		{190B47D6-2961-4EA3-807F-875F3666058B} = {23C9A53E-70E7-4495-9DE6-79C7A0E51FFC}
 		{1848F9FB-4BFC-41D6-B547-ED4DEB35B9DD} = {23C9A53E-70E7-4495-9DE6-79C7A0E51FFC}
+		{F230087C-590D-4A3A-A3F9-741239178B08} = {23C9A53E-70E7-4495-9DE6-79C7A0E51FFC}
 	EndGlobalSection
 EndGlobal

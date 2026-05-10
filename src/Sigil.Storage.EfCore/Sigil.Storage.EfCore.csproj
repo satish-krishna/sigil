@@ -14,4 +14,8 @@
     <ProjectReference Include="..\Sigil.Core\Sigil.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sigil.Storage.EfCore.Tests" />
+  </ItemGroup>
+
 </Project>
