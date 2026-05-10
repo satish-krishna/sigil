@@ -71,4 +71,31 @@ public class AgentGatewayExecuteTests
         handler.Requests[0].RequestUri!.AbsoluteUri.ShouldBe($"{EndpointUrl}/sigil/execute");
         handler.Requests[0].Headers.GetValues("X-Sigil-Key").ShouldHaveSingleItem().ShouldBe(Key);
     }
+
+    [Fact]
+    public async Task HappyPath_Sends_Request_Body_As_JsonExecutionPackage()
+    {
+        var handler = new FakeHttpMessageHandler();
+        handler.EnqueueResponse(HttpStatusCode.OK, JsonSerializer.Serialize(new
+        {
+            delta = new { updates = new Dictionary<string, object>(), removals = Array.Empty<string>() },
+            logs = Array.Empty<object>(),
+            metrics = new { promptTokens = 0, completionTokens = 0, duration = "00:00:00" }
+        }));
+
+        var gateway = GatewayTestHarness.WithRawClient(
+            handler,
+            security: GatewayTestHarness.OpenWithKey(AgentIdValue, Key));
+
+        await gateway.ExecuteAsync(
+            GatewayTestHarness.MakeRegistration(AgentIdValue, EndpointUrl),
+            SamplePackage());
+
+        var sentJson = await handler.Requests[0].Content!.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(sentJson);
+        var root = doc.RootElement;
+        root.GetProperty("task").GetProperty("jobId").GetString().ShouldBe("job-1");
+        root.GetProperty("snapshot").GetProperty("jobId").GetString().ShouldBe("job-1");
+        root.GetProperty("expectedETag").GetString().ShouldBe("etag-1");
+    }
 }

@@ -61,8 +61,10 @@ public sealed class AgentGateway : IAgentGateway
         if (pre.IsFailure)
             return Result.Failure<TResponse>(pre.Error);
 
+        _logger.LogDebug("Gateway dispatch {Method} for {AgentId}", method, agent.AgentId.Value);
+
         var requestUri = ComposeEndpoint(pre.Value.BaseUri, subPath);
-        var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
         request.Headers.Add("X-Sigil-Key", pre.Value.OutboundKey);
         request.Content = JsonContent.Create(body, options: JsonOptions);
 
@@ -119,6 +121,7 @@ public sealed class AgentGateway : IAgentGateway
             401 or 403 => Result.Failure<TResponse>(SigilGatewayErrors.AgentRejectedCredentials),
             404        => Result.Failure<TResponse>(SigilGatewayErrors.AgentNotFound),
             >= 400 and < 500 => Result.Failure<TResponse>(SigilGatewayErrors.AgentRejected),
+            // 5xx (and any other unmapped code, e.g., 1xx/3xx that HttpClient surfaces directly): treat as agent error.
             _ => Result.Failure<TResponse>(SigilGatewayErrors.AgentError),
         };
     }

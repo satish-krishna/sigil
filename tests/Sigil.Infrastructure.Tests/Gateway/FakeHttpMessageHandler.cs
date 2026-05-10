@@ -34,16 +34,39 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
             return response;
         });
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        // Capture a snapshot. Cloning the body is awkward; tests inspect the
-        // original request object so we just record the reference.
-        Requests.Add(request);
-
         if (cancellationToken.IsCancellationRequested)
-            return Task.FromCanceled<HttpResponseMessage>(cancellationToken);
+            throw new OperationCanceledException(cancellationToken);
+
+        // Buffer the body before the gateway disposes the request, then detach the
+        // original content from the outgoing request so disposal does not cascade to
+        // our snapshot. Tests read Content from the captured snapshot message.
+        HttpContent? snapshot = null;
+        if (request.Content is not null)
+        {
+            var bytes = await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            var contentType = request.Content.Headers.ContentType;
+            var buffered = new ByteArrayContent(bytes);
+            if (contentType is not null)
+                buffered.Headers.ContentType = contentType;
+            snapshot = buffered;
+            // Null the content on the live request so disposing the HttpRequestMessage
+            // (via `using var request` in DispatchAsync) does not dispose our snapshot.
+            request.Content = null;
+        }
+
+        // Build a lightweight snapshot record that tests can inspect freely.
+        var captured = new HttpRequestMessage(request.Method, request.RequestUri)
+        {
+            Content = snapshot
+        };
+        foreach (var header in request.Headers)
+            captured.Headers.TryAddWithoutValidation(header.Key, header.Value);
+
+        Requests.Add(captured);
 
         if (_scripted.Count == 0)
             throw new InvalidOperationException(
@@ -51,6 +74,6 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
                 "queue an EnqueueResponse / EnqueueException for every expected call.");
 
         var produce = _scripted.Dequeue();
-        return Task.FromResult(produce(request));
+        return produce(request);
     }
 }
