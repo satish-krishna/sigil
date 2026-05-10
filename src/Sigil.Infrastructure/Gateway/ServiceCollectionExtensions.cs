@@ -28,10 +28,10 @@ public static class ServiceCollectionExtensions
         httpClientBuilder.AddResilienceHandler("agent-validate", BuildValidatePipeline);
         httpClientBuilder.AddResilienceHandler("agent-execute",  BuildExecutePipeline);
 
-        // Polly 8.x AddResiliencePipelineRegistry does not expose an (options, IServiceProvider)
-        // overload. We register a custom provider that lazily creates one circuit-breaker per
-        // agent key with full IServiceProvider access. Both ResiliencePipelineProvider<string>
-        // and ResiliencePipelineRegistry<string> resolve to the same singleton.
+        // PerAgentBreakerProvider is registered as the concrete singleton, then
+        // forwarded to the ResiliencePipelineProvider<string> abstraction so the
+        // gateway can resolve it via the Polly v8 abstraction. ResiliencePipelineRegistry
+        // is NOT registered — request the abstract provider type.
         services.AddSingleton<PerAgentBreakerProvider>();
         services.AddSingleton<ResiliencePipelineProvider<string>>(
             sp => sp.GetRequiredService<PerAgentBreakerProvider>());

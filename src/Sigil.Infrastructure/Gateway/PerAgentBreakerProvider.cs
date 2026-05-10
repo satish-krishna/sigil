@@ -13,8 +13,9 @@ namespace Sigil.Infrastructure.Gateway;
 /// </summary>
 internal sealed class PerAgentBreakerProvider : ResiliencePipelineProvider<string>
 {
+    // Bounded in practice by the number of registered agents. The kernel controls
+    // all call sites; arbitrary-key injection is not a concern in the current threat model.
     private readonly ConcurrentDictionary<string, ResiliencePipeline<HttpResponseMessage>> _typed = new();
-    private readonly ConcurrentDictionary<string, ResiliencePipeline> _untyped = new();
     private readonly AgentGatewayOptions _opts;
 
     public PerAgentBreakerProvider(IOptions<AgentGatewayOptions> opts)
@@ -32,8 +33,7 @@ internal sealed class PerAgentBreakerProvider : ResiliencePipelineProvider<strin
         return ResiliencePipeline<TResult>.Empty;
     }
 
-    public override ResiliencePipeline GetPipeline(string key)
-        => _untyped.GetOrAdd(key, _ => ResiliencePipeline.Empty);
+    public override ResiliencePipeline GetPipeline(string key) => ResiliencePipeline.Empty;
 
     public override bool TryGetPipeline<TResult>(string key, out ResiliencePipeline<TResult> pipeline)
     {
@@ -43,7 +43,10 @@ internal sealed class PerAgentBreakerProvider : ResiliencePipelineProvider<strin
 
     public override bool TryGetPipeline(string key, out ResiliencePipeline pipeline)
     {
-        pipeline = GetPipeline(key);
+        // Untyped pipelines are unused by the gateway; return Empty so callers
+        // that exercise this path get a no-op pipeline. Always succeeds because
+        // every key resolves to the shared static Empty instance.
+        pipeline = ResiliencePipeline.Empty;
         return true;
     }
 

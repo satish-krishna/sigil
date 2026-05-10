@@ -142,6 +142,8 @@ Bound from configuration section `Gateway`. Validated on start. Field-style muta
 
 ### 5.2 DI extension
 
+**Deviation from design intent:** `AddResiliencePipelineRegistry<string>` was originally planned (see §10 Open Question #1, now resolved). At implementation, the Polly 8.x callback API does not expose `IServiceProvider` via the standard `AddResiliencePipelineRegistry` overloads, and the `BuilderFactory` delegate produces non-generic `ResiliencePipelineBuilder` instances incompatible with the typed `ResiliencePipeline<HttpResponseMessage>` required for per-agent breaker isolation. A custom `PerAgentBreakerProvider` (extending `ResiliencePipelineProvider<string>`) is used instead.
+
 ```csharp
 public static class ServiceCollectionExtensions
 {
@@ -154,14 +156,20 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(AgentGatewayOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddHttpClient<AgentGateway>()
-            .AddResilienceHandler("agent-validate", BuildValidatePipeline)
-            .AddResilienceHandler("agent-execute",  BuildExecutePipeline);
+        // Typed HttpClient with two named resilience handlers — each gets its own
+        // timeout + retry stack. Per-agent circuit breaking is handled separately
+        // by PerAgentBreakerProvider (injected into AgentGateway).
+        var httpClientBuilder = services.AddHttpClient<AgentGateway>();
+        httpClientBuilder.AddResilienceHandler("agent-validate", BuildValidatePipeline);
+        httpClientBuilder.AddResilienceHandler("agent-execute",  BuildExecutePipeline);
 
-        // Single registry registered as a singleton ResiliencePipelineProvider<string>.
-        // The registry is configured to lazily build a per-agent breaker pipeline
-        // for any key matching "agent-circuit::*" on first lookup.
-        services.AddResiliencePipelineRegistry<string>(ConfigureBreakerRegistry);
+        // PerAgentBreakerProvider is registered as the concrete singleton, then
+        // forwarded to the ResiliencePipelineProvider<string> abstraction so the
+        // gateway can resolve it via the Polly v8 abstraction. ResiliencePipelineRegistry
+        // is NOT registered — request the abstract provider type.
+        services.AddSingleton<PerAgentBreakerProvider>();
+        services.AddSingleton<ResiliencePipelineProvider<string>>(
+            sp => sp.GetRequiredService<PerAgentBreakerProvider>());
 
         services.AddSingleton<IAgentGateway>(sp => sp.GetRequiredService<AgentGateway>());
         return services;
@@ -174,7 +182,7 @@ public static class ServiceCollectionExtensions
         var opts = ctx.ServiceProvider.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
         builder
             .AddTimeout(opts.ValidateTimeout)
-            .AddRetry(BuildRetryStrategy(opts));
+            .AddRetry(BuildRetryOptions(opts));
     }
 
     private static void BuildExecutePipeline(
@@ -184,10 +192,10 @@ public static class ServiceCollectionExtensions
         var opts = ctx.ServiceProvider.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
         builder
             .AddTimeout(opts.ExecuteTimeout)
-            .AddRetry(BuildRetryStrategy(opts));
+            .AddRetry(BuildRetryOptions(opts));
     }
 
-    private static HttpRetryStrategyOptions BuildRetryStrategy(AgentGatewayOptions opts) => new()
+    private static HttpRetryStrategyOptions BuildRetryOptions(AgentGatewayOptions opts) => new()
     {
         MaxRetryAttempts = opts.MaxRetryAttempts,
         Delay            = opts.BaseRetryDelay,
@@ -198,7 +206,7 @@ public static class ServiceCollectionExtensions
 
     // Shared transient predicate: retry/breaker fire on transport exceptions
     // and HTTP 5xx. Never on 4xx (those are mapped terminally in §5.5).
-    private static bool IsTransient(Outcome<HttpResponseMessage> outcome)
+    internal static bool IsTransient(Outcome<HttpResponseMessage> outcome)
     {
         if (outcome.Exception is HttpRequestException or TimeoutRejectedException)
             return true;
@@ -206,29 +214,10 @@ public static class ServiceCollectionExtensions
             return (int)response.StatusCode >= 500;
         return false;
     }
-
-    // Per-agent circuit-breaker pipelines built lazily on first lookup of any
-    // "agent-circuit::*" key. Pipeline configuration is identical per-agent;
-    // only the per-key state (open/closed/half-open) is isolated.
-    private static void ConfigureBreakerRegistry(
-        ResiliencePipelineRegistryOptions<string> options,
-        IServiceProvider sp)
-    {
-        var opts = sp.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
-        options.BuilderFactory = key => new ResiliencePipelineBuilder<HttpResponseMessage>()
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
-            {
-                FailureRatio       = opts.CircuitBreakerFailureRatio / 100.0,
-                MinimumThroughput  = opts.CircuitBreakerMinimumThroughput,
-                SamplingDuration   = opts.CircuitBreakerSamplingDuration,
-                BreakDuration      = opts.CircuitBreakerBreakDuration,
-                ShouldHandle       = static args => ValueTask.FromResult(IsTransient(args.Outcome)),
-            });
-    }
 }
 ```
 
-> The `ConfigureBreakerRegistry` shape above is the design intent. The exact `AddResiliencePipelineRegistry<TKey>` overload signature in `Polly.Extensions` v8.x — specifically whether the configuration callback exposes `IServiceProvider` directly or requires an intermediate `IConfigureOptions<ResiliencePipelineRegistryOptions<TKey>>` — will be confirmed at implementation time. If the API forces the latter, the registration is split accordingly without changing the design.
+`PerAgentBreakerProvider` extends `ResiliencePipelineProvider<string>` and lazily builds one `ResiliencePipeline<HttpResponseMessage>` (circuit breaker) per agent key using a `ConcurrentDictionary`. Untyped pipeline calls (`GetPipeline(string)` / `TryGetPipeline(string, out ResiliencePipeline)`) return `ResiliencePipeline.Empty` directly — no caching — because the gateway never exercises that path and `Empty` is a static singleton. The typed dictionary is bounded in practice by the number of registered agents; the kernel controls all call sites so arbitrary-key injection is not a concern.
 
 ### 5.3 The gateway itself
 
@@ -481,7 +470,7 @@ The package's minimum version will be selected at implementation time to satisfy
 
 These are flagged for the implementation phase to resolve, not blockers for the spec:
 
-1. **`AddResiliencePipelineRegistry<TKey>` configuration callback shape.** The design pattern (lazy-create a breaker on first lookup of `agent-circuit::*` via a `BuilderFactory`) is correct. The literal overload signature in the installed `Polly.Extensions` v8.x — and whether `IServiceProvider` is plumbed directly into the callback or accessed via an `IConfigureOptions<ResiliencePipelineRegistryOptions<TKey>>` indirection — will be confirmed at implementation time and the DI snippet in §5.2 updated to match.
+1. ~~**`AddResiliencePipelineRegistry<TKey>` configuration callback shape.**~~ **Resolved.** `AddResiliencePipelineRegistry<string>` was not used. The Polly 8.x callback API does not expose `IServiceProvider` and the `BuilderFactory` produces non-generic builders incompatible with `ResiliencePipeline<HttpResponseMessage>`. The implementation uses a custom `PerAgentBreakerProvider` (extends `ResiliencePipelineProvider<string>`) registered as a singleton and forwarded to the abstraction. See §5.2 for the actual DI wiring.
 2. **`ResilienceContext` attempt count exposure.** The plan is to pull `attempts` for the failure log/tag. If the v8 API doesn't expose this cleanly, the tag is dropped — it's a nice-to-have, not load-bearing.
 3. **Breaker key collisions.** Using `agent-circuit::{agentId}` assumes `AgentId.Value` is safe as a registry-key suffix. `AgentId` is currently a `readonly record struct(string Value)` with no normalisation; if registry keys turn out to be case-sensitive in a way that surprises us with mixed-case ids, we add a normalisation pass in `BuildBreakerKey`.
 4. **Should the breaker also wrap pre-flight failures?** Decision: **no** — pre-flight (tier, key, URL) outcomes are kernel-side, not agent-health signals. The breaker only sees outcomes of the actual HTTP send.
