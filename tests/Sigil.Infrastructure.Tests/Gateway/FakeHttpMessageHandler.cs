@@ -23,8 +23,10 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
     public void EnqueueDelay(TimeSpan delay, HttpStatusCode finalStatus = HttpStatusCode.OK, string? body = null)
         => _scripted.Enqueue(req =>
         {
-            // Synchronous delay is fine for tests against Polly's FakeTimeProvider or
-            // when the test explicitly cancels. Avoid in tests that exceed CI budgets.
+            // Thread.Sleep blocks the worker thread for the full delay and does NOT
+            // honour the SendAsync CancellationToken once entered. Use only with
+            // pre-cancelled tokens (caught at the top of SendAsync) or tests where
+            // the delay is short enough not to matter on CI.
             Thread.Sleep(delay);
             var response = new HttpResponseMessage(finalStatus);
             if (body is not null)
