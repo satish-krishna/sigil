@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Polly;
 using Polly.Registry;
 using Sigil.Core.Gateway;
 using Sigil.Core.Identity;
@@ -12,6 +13,33 @@ using Sigil.Infrastructure.Security;
 using Sigil.Infrastructure.Tests.Security;
 
 namespace Sigil.Infrastructure.Tests.Gateway;
+
+/// <summary>
+/// A <see cref="ResiliencePipelineProvider{TKey}"/> that returns an empty (pass-through)
+/// pipeline for every key. Used by <see cref="GatewayTestHarness.WithRawClient"/> so that
+/// the gateway's per-agent breaker lookup succeeds without adding any resilience behaviour
+/// — raw-client tests are not resilience tests.
+/// </summary>
+internal sealed class PassThroughBreakerProvider : ResiliencePipelineProvider<string>
+{
+    public override ResiliencePipeline<TResult> GetPipeline<TResult>(string key)
+        => ResiliencePipeline<TResult>.Empty;
+
+    public override ResiliencePipeline GetPipeline(string key)
+        => ResiliencePipeline.Empty;
+
+    public override bool TryGetPipeline<TResult>(string key, out ResiliencePipeline<TResult> pipeline)
+    {
+        pipeline = ResiliencePipeline<TResult>.Empty;
+        return true;
+    }
+
+    public override bool TryGetPipeline(string key, out ResiliencePipeline pipeline)
+    {
+        pipeline = ResiliencePipeline.Empty;
+        return true;
+    }
+}
 
 internal static class GatewayTestHarness
 {
@@ -33,14 +61,16 @@ internal static class GatewayTestHarness
 
         var securityMonitor = new TestOptionsMonitor<SigilSecurityOptions>(security);
 
-        // No-op breaker registry: returns a do-nothing pipeline. Resilience tests
-        // (Task 13) use the DI-built harness with real per-agent breakers instead.
-        var registry = new ResiliencePipelineRegistry<string>();
+        // Transparent breaker provider: every key resolves to an empty (pass-through)
+        // pipeline. Raw-client tests do not exercise resilience behaviour — they assert
+        // request shape, headers, serialization, and HTTP outcome mapping. The real
+        // per-agent breaker registry is used by WithResilience() instead.
+        var breakers = new PassThroughBreakerProvider();
 
         return new AgentGateway(
             http,
             securityMonitor,
-            registry,
+            breakers,
             new TestOptionsMonitor<AgentGatewayOptions>(gateway),
             NullLogger<AgentGateway>.Instance);
     }

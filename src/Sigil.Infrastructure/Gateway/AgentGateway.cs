@@ -4,7 +4,9 @@ using System.Text.Json;
 using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly.CircuitBreaker;
 using Polly.Registry;
+using Polly.Timeout;
 using Sigil.Core.Gateway;
 using Sigil.Core.Identity;
 using Sigil.Core.Protocol;
@@ -68,11 +70,26 @@ public sealed class AgentGateway : IAgentGateway
         request.Headers.Add("X-Sigil-Key", pre.Value.OutboundKey);
         request.Content = JsonContent.Create(body, options: JsonOptions);
 
+        var breaker = _breakers.GetPipeline<HttpResponseMessage>(
+            $"agent-circuit::{agent.AgentId.Value}");
+
         try
         {
-            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+            using var response = await breaker.ExecuteAsync(
+                static async (state, ct) =>
+                    await state.Http.SendAsync(state.Request, ct).ConfigureAwait(false),
+                (Http: _http, Request: request),
+                ct).ConfigureAwait(false);
 
             return await MapResponseAsync<TResponse>(response, ct).ConfigureAwait(false);
+        }
+        catch (BrokenCircuitException)
+        {
+            return Result.Failure<TResponse>(SigilGatewayErrors.CircuitOpen);
+        }
+        catch (TimeoutRejectedException)
+        {
+            return Result.Failure<TResponse>(SigilGatewayErrors.Timeout);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
