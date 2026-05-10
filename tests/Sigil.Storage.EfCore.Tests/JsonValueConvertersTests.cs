@@ -52,6 +52,15 @@ public class JsonValueConvertersTests
     }
 
     [Fact]
+    public void ReadOnlyListComparer_EqualListsAreEqual()
+    {
+        var cmp = JsonValueConverters.ReadOnlyListComparer<string>();
+        IReadOnlyList<string> a = new[] { "a", "b" };
+        IReadOnlyList<string> b = new[] { "a", "b" };
+        cmp.Equals(a, b).ShouldBeTrue();
+    }
+
+    [Fact]
     public void StringMapComparer_DetectsKeyAdded()
     {
         var cmp = JsonValueConverters.StringMapComparer();
