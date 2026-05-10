@@ -27,9 +27,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         await _container.StartAsync();
         await using var ctx = NewContext();
-        // Migration history doesn't exist yet (Task 15 lands later) — build schema
-        // directly from the model. Switch to MigrateAsync() once migrations land.
-        await ctx.Database.EnsureCreatedAsync();
+        await ctx.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();

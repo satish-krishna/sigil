@@ -68,4 +68,22 @@ public class AddSigilEfCoreTests
         var opts = provider.GetRequiredService<IOptions<SigilEfCoreOptions>>().Value;
         opts.ConnectionString.ShouldBe(_pg.ConnectionString);
     }
+
+    [Fact]
+    public void EmptyConnectionString_FailsValidation()
+    {
+        var emptyConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:EfCore:ConnectionString"] = ""
+            })
+            .Build();
+
+        using var provider = NewServices()
+            .AddSigilEfCore(emptyConfig)
+            .BuildServiceProvider();
+
+        Should.Throw<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<SigilEfCoreOptions>>().Value);
+    }
 }

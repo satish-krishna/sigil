@@ -16,7 +16,7 @@ public sealed class EfJobStore : IJobStore
     public async Task<Result> CreateAsync(Job job, CancellationToken ct = default)
     {
         var existing = await _ctx.Jobs.FindAsync(new object?[] { job.JobId }, ct);
-        if (existing is not null) return Result.Failure(StorageErrors.NotFound);
+        if (existing is not null) return Result.Failure(StorageErrors.DuplicateJob);
 
         _ctx.Jobs.Add(job);
         _ctx.ContextStates.Add(new ContextStateRecord

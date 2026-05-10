@@ -1266,7 +1266,7 @@ services:
       - postgres
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__Sigil=Host=postgres;Database=sigil;Username=sigil;Password=sigil
+      - Storage__EfCore__ConnectionString=Host=postgres;Database=sigil;Username=sigil;Password=sigil
       - Security__Mode=Open  # Open for local dev, Standard/Trusted for prod
 
   agent-echo:

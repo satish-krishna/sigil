@@ -15,6 +15,9 @@ public static class ServiceCollectionExtensions
         services
             .AddOptions<SigilEfCoreOptions>()
             .Bind(configuration.GetSection(SigilEfCoreOptions.SectionName))
+            .Validate(
+                o => !string.IsNullOrWhiteSpace(o.ConnectionString),
+                $"{SigilEfCoreOptions.SectionName}:ConnectionString must be set.")
             .ValidateOnStart();
 
         services.AddDbContext<SigilDbContext>((sp, opts) =>

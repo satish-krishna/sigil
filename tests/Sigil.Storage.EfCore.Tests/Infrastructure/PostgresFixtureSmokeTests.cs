@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
+using Sigil.Core.Identity;
 using Xunit;
 
 namespace Sigil.Storage.EfCore.Tests.Infrastructure;
@@ -15,14 +16,13 @@ public class PostgresFixtureSmokeTests
     {
         await using var ctx = _pg.NewContext();
 
-        // Schema was created in InitializeAsync via EnsureCreatedAsync.
-        // CanConnect proves the container is reachable.
         var canConnect = await ctx.Database.CanConnectAsync();
         canConnect.ShouldBeTrue();
 
-        // The agent_registrations table exists if EnsureCreated worked end-to-end.
-        // Querying an empty set should succeed and return zero rows.
-        var count = await ctx.AgentRegistrations.CountAsync();
-        count.ShouldBe(0);
+        // Querying a known-missing AgentId proves the table exists and is queryable
+        // without depending on row count (other tests share the fixture).
+        var probe = await ctx.AgentRegistrations
+            .FirstOrDefaultAsync(x => x.AgentId == new AgentId("__smoke-probe-never-inserted__"));
+        probe.ShouldBeNull();
     }
 }

@@ -57,4 +57,17 @@ public class EfJobStoreTests
         result.IsSuccess.ShouldBeTrue();
         (await store.GetAsync(new JobId("job-3"))).Value.Status.ShouldBe(JobStatus.Completed);
     }
+
+    [Fact]
+    public async Task CreateAsync_DuplicateJobId_ReturnsDuplicateJob()
+    {
+        await using var ctx = _pg.NewContext();
+        var store = new EfJobStore(ctx);
+        var jobId = new JobId("job-dup");
+        await store.CreateAsync(new Job { JobId = jobId });
+
+        var second = await store.CreateAsync(new Job { JobId = jobId });
+        second.IsFailure.ShouldBeTrue();
+        second.Error.ShouldBe(StorageErrors.DuplicateJob);
+    }
 }
