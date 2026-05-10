@@ -46,7 +46,7 @@ See [`.bob/docs/sigil-architecture-blueprint.md`](.bob/docs/sigil-architecture-b
 ## Stack
 
 - **Kernel** — .NET 9, FastEndpoints v8, SignalR
-- **Storage** — `ISigilStore` abstraction with two providers: MongoDB and EF Core
+- **Storage** — `ISigilStore` abstraction with two providers: EF Core (Postgres, default) and MongoDB
 - **LLM** — `IChatClient` (Microsoft.Extensions.AI) — swap Claude, OpenAI, Azure, or Ollama with one line
 - **Resilience** — Polly (circuit breaker, timeout, retry) in the Secure Gateway
 - **Observability** — OpenTelemetry (`System.Diagnostics.Activity`)
@@ -109,7 +109,7 @@ dotnet build sigil.sln
 # Run the (currently empty) API
 dotnet run --project src/Sigil.Api
 
-# Full local stack — kernel + MongoDB + sample agent (later)
+# Full local stack — kernel + Postgres + sample agent (later)
 docker compose up
 ```
 
