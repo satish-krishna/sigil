@@ -3,6 +3,7 @@ using Sigil.Core.Gateway;
 using Sigil.Core.Identity;
 using Sigil.Core.Protocol;
 using Sigil.Core.Security;
+using Sigil.Infrastructure.Security;
 using Xunit;
 
 namespace Sigil.Infrastructure.Tests.Gateway;
@@ -65,6 +66,55 @@ public class AgentGatewayTierTests
 
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(SigilGatewayErrors.TierNotSupported);
+        handler.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenTier_NoAllowlistEntry_Fails_With_OutboundKeyMissing()
+    {
+        var handler = new FakeHttpMessageHandler();
+        // Allowlist intentionally empty: agent claims Open tier but has no key configured.
+        var gateway = GatewayTestHarness.WithRawClient(
+            handler,
+            security: new SigilSecurityOptions { Mode = SecurityTier.Open });
+
+        var agent = GatewayTestHarness.MakeRegistration(agentId: "echo-agent");
+        var request = new ValidationRequest
+        {
+            Task = new AgentTask { JobId = new JobId("j"), StepId = new StepId("s"), SkillName = "echo" },
+            AvailableTokenBudget = 1000
+        };
+
+        var result = await gateway.ValidateAsync(agent, request);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilGatewayErrors.OutboundKeyMissing);
+        handler.Requests.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-a-uri")]
+    [InlineData("/just/a/path")]
+    public async Task InvalidEndpoint_Fails_With_EndpointInvalid(string endpointUrl)
+    {
+        var handler = new FakeHttpMessageHandler();
+        var gateway = GatewayTestHarness.WithRawClient(
+            handler,
+            security: GatewayTestHarness.OpenWithKey("echo-agent", "dev-key-echo"));
+
+        var agent = GatewayTestHarness.MakeRegistration(endpointUrl: endpointUrl);
+        var request = new ValidationRequest
+        {
+            Task = new AgentTask { JobId = new JobId("j"), StepId = new StepId("s"), SkillName = "echo" },
+            AvailableTokenBudget = 1000
+        };
+
+        var result = await gateway.ValidateAsync(agent, request);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilGatewayErrors.EndpointInvalid);
         handler.Requests.ShouldBeEmpty();
     }
 }

@@ -44,10 +44,11 @@ public sealed class AgentGateway : IAgentGateway
         ValidationRequest request,
         CancellationToken ct = default)
     {
-        if (agent.Security.Tier != SecurityTier.Open)
-            return Task.FromResult(Result.Failure<ValidationResult>(SigilGatewayErrors.TierNotSupported));
+        var pre = Preflight(agent);
+        if (pre.IsFailure)
+            return Task.FromResult(Result.Failure<ValidationResult>(pre.Error));
 
-        // Remaining pre-flight + HTTP added in subsequent tasks.
+        // HTTP path implemented in Task 9.
         throw new NotImplementedException();
     }
 
@@ -56,11 +57,33 @@ public sealed class AgentGateway : IAgentGateway
         AgentExecutionPackage package,
         CancellationToken ct = default)
     {
-        if (agent.Security.Tier != SecurityTier.Open)
-            return Task.FromResult(Result.Failure<AgentExecutionResult>(SigilGatewayErrors.TierNotSupported));
+        var pre = Preflight(agent);
+        if (pre.IsFailure)
+            return Task.FromResult(Result.Failure<AgentExecutionResult>(pre.Error));
 
         throw new NotImplementedException();
     }
+
+    private Result<PreflightContext> Preflight(AgentRegistration agent)
+    {
+        if (agent.Security.Tier != SecurityTier.Open)
+            return Result.Failure<PreflightContext>(SigilGatewayErrors.TierNotSupported);
+
+        if (string.IsNullOrWhiteSpace(agent.EndpointUrl)
+            || !Uri.TryCreate(agent.EndpointUrl, UriKind.Absolute, out var baseUri)
+            || (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Result.Failure<PreflightContext>(SigilGatewayErrors.EndpointInvalid);
+        }
+
+        var keys = _security.CurrentValue.OpenTier.Keys;
+        if (!keys.TryGetValue(agent.AgentId.Value, out var outboundKey))
+            return Result.Failure<PreflightContext>(SigilGatewayErrors.OutboundKeyMissing);
+
+        return Result.Success(new PreflightContext(baseUri, outboundKey));
+    }
+
+    private readonly record struct PreflightContext(Uri BaseUri, string OutboundKey);
 
     private static JsonSerializerOptions BuildJsonOptions()
     {
