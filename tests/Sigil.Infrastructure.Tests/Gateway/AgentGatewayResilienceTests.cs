@@ -142,4 +142,67 @@ public class AgentGatewayResilienceTests
         var bResult = await gateway.ValidateAsync(agentB, SampleRequest());
         bResult.IsSuccess.ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task Timeout_Surfaces_TimeoutErrorCode()
+    {
+        var handler = new FakeHttpMessageHandler();
+        // Configure a delay longer than the per-method timeout. The gateway's
+        // CancellationTokenSource.CancelAfter(ValidateTimeout) will fire before
+        // the synchronous Thread.Sleep completes, causing the linked CTS to
+        // cancel SendAsync.
+        // NOTE: Thread.Sleep in FakeHttpMessageHandler blocks the worker thread for
+        // the full 500ms regardless of cancellation — wall-clock time for this test
+        // is ~500ms. The gateway still returns Timeout because the linked CTS fires
+        // at 50ms and the awaited SendAsync task throws OperationCanceledException.
+        handler.EnqueueDelay(TimeSpan.FromMilliseconds(500));
+
+        var fastTimeoutOpts = new AgentGatewayOptions
+        {
+            ValidateTimeout = TimeSpan.FromMilliseconds(50),
+            ExecuteTimeout = TimeSpan.FromSeconds(5),
+            MaxRetryAttempts = 1,  // minimum valid; timeout fires long before any retry fires
+            BaseRetryDelay = TimeSpan.FromMilliseconds(1),
+            CircuitBreakerFailureRatio = 50,
+            CircuitBreakerMinimumThroughput = 10,
+            CircuitBreakerSamplingDuration = TimeSpan.FromSeconds(2),
+            CircuitBreakerBreakDuration = TimeSpan.FromSeconds(60),
+        };
+
+        var (gateway, provider) = GatewayTestHarness.WithResilience(
+            handler,
+            security: OpenWith((AgentIdValue, Key)),
+            gateway: fastTimeoutOpts);
+        using var _ = provider;
+
+        var result = await gateway.ValidateAsync(
+            GatewayTestHarness.MakeRegistration(AgentIdValue, EndpointUrl),
+            SampleRequest());
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilGatewayErrors.Timeout);
+    }
+
+    [Fact]
+    public async Task HttpRequestException_Is_Retried_Then_Surfaces_TransportError()
+    {
+        var handler = new FakeHttpMessageHandler();
+        // 1 + MaxRetryAttempts(2) = 3 total attempts before surrendering.
+        for (int i = 0; i < AttemptsPerDispatch; i++)
+            handler.EnqueueException(new HttpRequestException("connection refused"));
+
+        var (gateway, provider) = GatewayTestHarness.WithResilience(
+            handler,
+            security: OpenWith((AgentIdValue, Key)),
+            gateway: FastBreakerOptions());
+        using var _ = provider;
+
+        var result = await gateway.ValidateAsync(
+            GatewayTestHarness.MakeRegistration(AgentIdValue, EndpointUrl),
+            SampleRequest());
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilGatewayErrors.TransportError);
+        handler.Requests.Count.ShouldBe(AttemptsPerDispatch);
+    }
 }

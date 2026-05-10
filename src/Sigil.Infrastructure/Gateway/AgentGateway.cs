@@ -70,6 +70,7 @@ public sealed class AgentGateway : IAgentGateway
         {
             activity?.SetTag("sigil.gateway.error_code", pre.Error);
             activity?.SetStatus(ActivityStatusCode.Error);
+            LogTerminal(_logger, pre.Error, agent, method);
             return Result.Failure<TResponse>(pre.Error);
         }
 
@@ -108,36 +109,71 @@ public sealed class AgentGateway : IAgentGateway
             {
                 activity?.SetTag("sigil.gateway.error_code", outcome.Error);
                 activity?.SetStatus(ActivityStatusCode.Error);
+                LogTerminal(_logger, outcome.Error, agent, method);
             }
             else
             {
                 activity?.SetStatus(ActivityStatusCode.Ok);
+                _logger.LogDebug(
+                    "Gateway {Method} succeeded for {AgentId}",
+                    method, agent.AgentId.Value);
             }
             return outcome;
         }
         catch (BrokenCircuitException)
         {
-            return FailWith<TResponse>(activity, SigilGatewayErrors.CircuitOpen);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.CircuitOpen, agent, method);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
-            return FailWith<TResponse>(activity, SigilGatewayErrors.Timeout);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.Timeout, agent, method);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            return FailWith<TResponse>(activity, SigilGatewayErrors.Cancelled);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.Cancelled, agent, method);
         }
         catch (HttpRequestException)
         {
-            return FailWith<TResponse>(activity, SigilGatewayErrors.TransportError);
+            return FailWith<TResponse>(activity, SigilGatewayErrors.TransportError, agent, method);
         }
     }
 
-    private static Result<T> FailWith<T>(Activity? activity, string code)
+    private Result<T> FailWith<T>(Activity? activity, string code, AgentRegistration agent, string method)
     {
         activity?.SetTag("sigil.gateway.error_code", code);
         activity?.SetStatus(ActivityStatusCode.Error);
+        LogTerminal(_logger, code, agent, method);
         return Result.Failure<T>(code);
+    }
+
+    private static void LogTerminal(
+        ILogger logger, string code, AgentRegistration agent, string method)
+    {
+        switch (code)
+        {
+            case SigilGatewayErrors.Cancelled:
+            case SigilGatewayErrors.CircuitOpen:
+                logger.LogDebug(
+                    "Gateway {Method} terminal {ErrorCode} for {AgentId}",
+                    method, code, agent.AgentId.Value);
+                break;
+
+            case SigilGatewayErrors.AgentError:
+            case SigilGatewayErrors.TransportError:
+                logger.LogError(
+                    "Gateway {Method} terminal {ErrorCode} for {AgentId}",
+                    method, code, agent.AgentId.Value);
+                break;
+
+            default:
+                // TierNotSupported, OutboundKeyMissing, EndpointInvalid,
+                // AgentRejectedCredentials, AgentNotFound, AgentRejected,
+                // Timeout, ProtocolError — all Warning.
+                logger.LogWarning(
+                    "Gateway {Method} terminal {ErrorCode} for {AgentId}",
+                    method, code, agent.AgentId.Value);
+                break;
+        }
     }
 
     private static void SetTaskTags<TBody>(Activity? activity, TBody body)
