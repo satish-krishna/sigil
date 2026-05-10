@@ -44,8 +44,8 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 
 | Status | Issue | Title |
 |---|---|---|
-| ⬜ | [#5](https://github.com/satish-krishna/sigil/issues/5) | MongoDB provider with ETag concurrency *(used by v1 Docker Compose)* |
-| ⬜ | [#6](https://github.com/satish-krishna/sigil/issues/6) | EF Core provider + initial migration |
+| ⬜ | [#6](https://github.com/satish-krishna/sigil/issues/6) | EF Core provider + initial migration *(used by v1 Docker Compose)* |
+| ⬜ | [#5](https://github.com/satish-krishna/sigil/issues/5) | MongoDB provider with ETag concurrency |
 
 ---
 
@@ -77,7 +77,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 | Status | Issue | Title | Depends on |
 |---|---|---|---|
 | ⬜ | [#12](https://github.com/satish-krishna/sigil/issues/12) | Echo Agent (sample using SDK) | #8, #9, #20, #21, #22 |
-| ⬜ | [#14](https://github.com/satish-krishna/sigil/issues/14) | Docker Compose — Kernel + Echo + MongoDB | #5, #12, #13 |
+| ⬜ | [#14](https://github.com/satish-krishna/sigil/issues/14) | Docker Compose — Kernel + Echo + Postgres | #6, #12, #13 |
 
 ---
 
@@ -122,10 +122,10 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 After every issue above is closed:
 
 1. **Kernel boots.** `dotnet run --project src/Sigil.Api` exposes register/deregister/heartbeat/list/intent endpoints over FastEndpoints.
-2. **Storage persists.** MongoDB holds agent registrations, audit entries, and context with ETag-based optimistic concurrency.
+2. **Storage persists.** Postgres (via EF Core) holds agent registrations, audit entries, and context with ETag-based optimistic concurrency.
 3. **Agents register.** The Echo agent boots from a JSON manifest, advertises one skill (`echo-input`), heartbeats, and gracefully deregisters on shutdown.
 4. **Intents flow end-to-end.** A `POST /api/intents` matches an agent by skill, the gateway POSTs `/sigil/execute` over the signed channel, the agent runs the skill (composing the system prompt, invoking the in-process echo tool), returns a `ContextDelta`, and the audit log records the result.
-5. **One command runs the stack.** `docker compose up` builds and starts the kernel container, the Echo agent container, and MongoDB.
+5. **One command runs the stack.** `docker compose up` builds and starts the kernel container, the Echo agent container, and Postgres.
 
 ---
 

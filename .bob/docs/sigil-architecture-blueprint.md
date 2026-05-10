@@ -620,7 +620,7 @@ public class HybridPlanner : IPlanner
 ```csharp
 builder.AddSigil(sigil =>
 {
-    sigil.UseMongo(options => { /* ... */ });
+    sigil.UseEfCore(options => { /* ... */ });
 
     // Option A: Deterministic only (no LLM dependency)
     sigil.UsePlanner(PlannerMode.Deterministic);
@@ -1035,22 +1035,22 @@ graph TB
 **Consumer registration:**
 
 ```csharp
-// Option A: MongoDB
+// Option A: EF Core (Postgres) — default
+builder.AddSigil(sigil =>
+{
+    sigil.UseEfCore(options =>
+    {
+        options.UseNpgsql("Host=localhost;Database=sigil");
+    });
+});
+
+// Option B: MongoDB
 builder.AddSigil(sigil =>
 {
     sigil.UseMongo(options =>
     {
         options.ConnectionString = "mongodb://localhost:27017";
         options.Database = "sigil";
-    });
-});
-
-// Option B: EF Core
-builder.AddSigil(sigil =>
-{
-    sigil.UseEfCore(options =>
-    {
-        options.UseNpgsql("Host=localhost;Database=sigil");
     });
 });
 ```
@@ -1263,11 +1263,10 @@ services:
     ports:
       - "5100:8080"
     depends_on:
-      - mongo
+      - postgres
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - MongoDB__ConnectionString=mongodb://mongo:27017
-      - MongoDB__Database=sigil
+      - Storage__EfCore__ConnectionString=Host=postgres;Database=sigil;Username=sigil;Password=sigil
       - Security__Mode=Open  # Open for local dev, Standard/Trusted for prod
 
   agent-echo:
@@ -1282,12 +1281,16 @@ services:
     depends_on:
       - sigil-api
 
-  mongo:
-    image: mongo:7
+  postgres:
+    image: postgres:16
     ports:
-      - "27017:27017"
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=sigil
+      - POSTGRES_USER=sigil
+      - POSTGRES_PASSWORD=sigil
     volumes:
-      - sigil-data:/data/db
+      - sigil-data:/var/lib/postgresql/data
 
 volumes:
   sigil-data:
@@ -1451,8 +1454,8 @@ sigil/
 - [ ] `ISigilStore` + `IAuditStore` abstractions in Core
 - [ ] Agent Protocol types (AgentExecutionPackage, AgentExecutionResult, ValidationRequest/Result)
 - [ ] Security layer — Sigil-Key validation (Open tier for dev)
-- [ ] MongoDB storage provider with ETag support
 - [ ] EF Core storage provider with initial migration
+- [ ] MongoDB storage provider with ETag support
 - [ ] Secure Agent Registry (with routing weights)
 - [ ] Agent Agent Protocol (`/sigil/validate`, `/sigil/execute` with Snapshot)
 - [ ] `Sigil.Agent.SDK` — registration, heartbeat, validation endpoint, Snapshot/Delta handling
@@ -1460,7 +1463,7 @@ sigil/
 - [ ] Agent Health Monitor
 - [ ] Echo Agent (using SDK)
 - [ ] FastEndpoints (register, deregister, heartbeat, list, submit intent)
-- [ ] Docker Compose (Kernel + Echo Agent + MongoDB)
+- [ ] Docker Compose (Kernel + Echo Agent + Postgres)
 
 ### Phase 2 — Orchestration, Planner & Snapshot Engine
 - [ ] `IPlanner` interface in Core

@@ -10,7 +10,9 @@
     <PackageVersion Include="FastEndpoints.Swagger" Version="8.1.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.15" />
     <PackageVersion Include="MongoDB.Driver" Version="3.8.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
   </ItemGroup>
 
   <!-- Microsoft.Extensions.* (pinned to match transitive requirements) -->
@@ -35,5 +37,10 @@
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <!-- Test-only — Testcontainers -->
+  <ItemGroup>
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
   </ItemGroup>
 </Project>
