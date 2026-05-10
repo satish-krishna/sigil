@@ -17,13 +17,12 @@ public class AgentGatewayResilienceTests
     private const string EndpointUrl = "http://echo-agent:8080";
     private const string Key = "dev-key-echo";
 
-    // NOTE: AddAgentGateway registers two named resilience handlers — agent-validate and
-    // agent-execute — on the same typed HttpClient. They chain in sequence, so a single
-    // gateway call makes (1 + MaxRetryAttempts)^2 HTTP attempts when all responses are
-    // transient. With MaxRetryAttempts=2: (1+2)*(1+2) = 9 actual HTTP calls per dispatch.
-    // The per-agent circuit breaker wraps _http.SendAsync (the full typed-client pipeline),
-    // so it observes ONE outcome per breaker.ExecuteAsync call regardless of inner retries.
-    private const int AttemptsPerDispatch = 9; // (1+2)*(1+2) for MaxRetryAttempts=2
+    // One resilience handler (agent-retry) is registered on the typed HttpClient — retry
+    // only, no timeout. Per-method timeouts are applied by the gateway via a linked
+    // CancellationTokenSource. A single transient dispatch makes 1 + MaxRetryAttempts=2
+    // HTTP calls total. The per-agent circuit breaker wraps _http.SendAsync (the full
+    // typed-client pipeline), so it observes ONE outcome per breaker.ExecuteAsync call.
+    private const int AttemptsPerDispatch = 3; // 1 + MaxRetryAttempts=2
 
     private static SigilSecurityOptions OpenWith(params (string AgentId, string Key)[] entries)
     {
@@ -54,8 +53,7 @@ public class AgentGatewayResilienceTests
     public async Task FiveXX_Is_Retried_Then_Surfaces_AgentError()
     {
         var handler = new FakeHttpMessageHandler();
-        // Two stacked resilience handlers (agent-validate + agent-execute), each with
-        // MaxRetryAttempts=2, multiply: (1+2) * (1+2) = 9 HTTP calls total.
+        // One retry handler with MaxRetryAttempts=2: 1 initial + 2 retries = 3 HTTP calls total.
         for (int i = 0; i < AttemptsPerDispatch; i++)
             handler.EnqueueResponse(HttpStatusCode.InternalServerError);
 
@@ -103,15 +101,16 @@ public class AgentGatewayResilienceTests
         // The per-agent breaker wraps _http.SendAsync (the full typed-client pipeline including
         // retry handlers). The breaker sees ONE outcome per breaker.ExecuteAsync call.
         // CircuitBreakerMinimumThroughput=4, FailureRatio=50% — the breaker opens after
-        // the 4th consecutive 5xx outcome. Each dispatch to agent-a consumes AttemptsPerDispatch
-        // internal HTTP calls but counts as ONE breaker outcome (a failure).
+        // the 4th consecutive 5xx outcome. Each dispatch to agent-a produces AttemptsPerDispatch
+        // (3) internal HTTP calls but counts as ONE breaker outcome (a failure).
         // We make 4 calls to agent-a to satisfy MinimumThroughput, then the next call
-        // should be rejected with circuit-open.
+        // should be rejected with circuit-open. Queue exactly 4 × 3 = 12 5xx responses
+        // so agent-b's OK responses sit immediately next in the shared handler queue.
         const int SickCallsToTripBreaker = 4;
         for (int i = 0; i < SickCallsToTripBreaker * AttemptsPerDispatch; i++)
             handler.EnqueueResponse(HttpStatusCode.InternalServerError);
 
-        // Healthy responses for agent B
+        // Healthy responses for agent B — positioned directly after agent-a's 5xx pool.
         var ok = JsonSerializer.Serialize(new { canHandle = true, missingTools = Array.Empty<string>() });
         for (int i = 0; i < 2; i++)
             handler.EnqueueResponse(HttpStatusCode.OK, ok);

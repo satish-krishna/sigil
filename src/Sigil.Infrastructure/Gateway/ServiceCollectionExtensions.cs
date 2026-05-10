@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Registry;
-using Polly.Timeout;
 using Sigil.Core.Gateway;
 
 namespace Sigil.Infrastructure.Gateway;
@@ -21,12 +20,14 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(AgentGatewayOptions.SectionName))
             .ValidateOnStart();
 
-        // Typed HttpClient with two named resilience handlers — each gets its own
-        // timeout + retry stack. Per-agent circuit breaking is handled separately
-        // by PerAgentBreakerProvider (injected into AgentGateway).
+        // One named resilience handler — retry only. Timeouts are NOT applied here;
+        // attaching multiple named handlers to the same typed HttpClient chains them
+        // sequentially so every request runs ALL handlers, multiplying retry attempts.
+        // Per-method timeouts (validate: 5 s, execute: 120 s) are applied by the gateway
+        // itself via CancellationTokenSource.CancelAfter linked to the caller's token.
+        // Per-agent circuit breaking is handled separately by PerAgentBreakerProvider.
         var httpClientBuilder = services.AddHttpClient<AgentGateway>();
-        httpClientBuilder.AddResilienceHandler("agent-validate", BuildValidatePipeline);
-        httpClientBuilder.AddResilienceHandler("agent-execute",  BuildExecutePipeline);
+        httpClientBuilder.AddResilienceHandler("agent-retry", BuildRetryPipeline);
 
         // PerAgentBreakerProvider is registered as the concrete singleton, then
         // forwarded to the ResiliencePipelineProvider<string> abstraction so the
@@ -40,24 +41,12 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static void BuildValidatePipeline(
+    private static void BuildRetryPipeline(
         ResiliencePipelineBuilder<HttpResponseMessage> builder,
         ResilienceHandlerContext ctx)
     {
         var opts = ctx.ServiceProvider.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
-        builder
-            .AddTimeout(opts.ValidateTimeout)
-            .AddRetry(BuildRetryOptions(opts));
-    }
-
-    private static void BuildExecutePipeline(
-        ResiliencePipelineBuilder<HttpResponseMessage> builder,
-        ResilienceHandlerContext ctx)
-    {
-        var opts = ctx.ServiceProvider.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
-        builder
-            .AddTimeout(opts.ExecuteTimeout)
-            .AddRetry(BuildRetryOptions(opts));
+        builder.AddRetry(BuildRetryOptions(opts));
     }
 
     private static HttpRetryStrategyOptions BuildRetryOptions(AgentGatewayOptions opts) => new()
@@ -71,7 +60,7 @@ public static class ServiceCollectionExtensions
 
     internal static bool IsTransient(Outcome<HttpResponseMessage> outcome)
     {
-        if (outcome.Exception is HttpRequestException or TimeoutRejectedException)
+        if (outcome.Exception is HttpRequestException)
             return true;
         if (outcome.Result is { } response)
             return (int)response.StatusCode >= 500;
