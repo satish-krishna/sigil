@@ -37,4 +37,34 @@ public class AgentGatewayTierTests
         result.Error.ShouldBe(SigilGatewayErrors.TierNotSupported);
         handler.Requests.ShouldBeEmpty();
     }
+
+    [Theory]
+    [InlineData(SecurityTier.Standard)]
+    [InlineData(SecurityTier.Trusted)]
+    public async Task ExecuteAsync_NonOpenTier_Fails_With_TierNotSupported_AndMakesNoHttpCall(SecurityTier tier)
+    {
+        var handler = new FakeHttpMessageHandler();
+        var gateway = GatewayTestHarness.WithRawClient(
+            handler,
+            security: GatewayTestHarness.OpenWithKey("echo-agent", "dev-key-echo"));
+
+        var agent = GatewayTestHarness.MakeRegistration(tier: tier);
+        var package = new AgentExecutionPackage
+        {
+            Task = new AgentTask
+            {
+                JobId = new JobId("job-1"),
+                StepId = new StepId("step-1"),
+                SkillName = "echo"
+            },
+            Snapshot = new ContextSnapshot { JobId = new JobId("job-1") },
+            ExpectedETag = new ETag("etag-1")
+        };
+
+        var result = await gateway.ExecuteAsync(agent, package);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(SigilGatewayErrors.TierNotSupported);
+        handler.Requests.ShouldBeEmpty();
+    }
 }
