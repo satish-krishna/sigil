@@ -12,7 +12,7 @@ public class AgentRegistryWeightedSelectionTests
         => new(store, random);
 
     [Fact]
-    public async Task Empty_skill_name_returns_failure_via_Maybe_None_and_throws_no()
+    public async Task Empty_skill_name_throws_ArgumentException()
     {
         var store = new FakeAgentRegistrationStore();
         var registry = Make(store, new StubRandomProvider(seed: 1));

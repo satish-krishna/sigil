@@ -87,7 +87,6 @@ public interface IAgentRegistry
 | `AgentNotFound` | `"agent-not-found"` | `Get`/transition on unknown `AgentId` |
 | `InvalidStatusTransition` | `"invalid-status-transition"` | Transition not allowed by matrix below |
 | `InvalidRoutingWeight` | `"invalid-routing-weight"` | `RegisterAsync` with `RoutingWeight < 0` or `> 100` |
-| `SkillNameRequired` | `"skill-name-required"` | `SelectByWeightAsync` with null/empty skill name |
 
 ## 5. Status transition matrix
 
@@ -160,7 +159,7 @@ A minimal in-memory `FakeAgentRegistrationStore` (added in the same test project
 - All candidates have `RoutingWeight = 0` → `Maybe.None`.
 - Single `Healthy` candidate → always selected.
 - Two `Healthy` candidates (w=10 vs w=90) with a seeded `IRandomProvider` → over 10 000 draws, distribution is 90/10 within ±2%. Use a seeded `Random` (e.g., seed 42) wrapped in a test `IRandomProvider`; assertion uses tolerance, not exact count.
-- `SkillName` null/empty → `skill-name-required`.
+- `SkillName` null/whitespace → throws `ArgumentException` (programmer error, not a domain-level failure).
 
 ### `tests/Sigil.Core.Tests/Registry/RegistryErrorsTests.cs`
 
