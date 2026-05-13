@@ -41,8 +41,25 @@ public sealed class AgentRegistry : IAgentRegistry
     public Task<IReadOnlyList<AgentRegistration>> FindByDomainAsync(string domain, CancellationToken ct = default)
         => _store.FindByDomainAsync(domain, ct);
 
-    public Task<Result> HeartbeatAsync(AgentId id, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task<Result> HeartbeatAsync(AgentId id, CancellationToken ct = default)
+    {
+        var maybe = await _store.GetAsync(id, ct);
+        if (maybe.HasNoValue)
+            return Result.Failure(RegistryErrors.AgentNotFound);
+
+        var current = maybe.Value.Status;
+        if (current == AgentStatus.Offline)
+            return Result.Failure(RegistryErrors.InvalidStatusTransition);
+
+        var beat = await _store.UpdateHeartbeatAsync(id, ct);
+        if (beat.IsFailure)
+            return beat;
+
+        if (current is AgentStatus.Starting or AgentStatus.Degraded)
+            return await _store.UpdateStatusAsync(id, AgentStatus.Healthy, ct);
+
+        return Result.Success();
+    }
 
     public Task<Result> MarkHealthyAsync(AgentId id, CancellationToken ct = default)
         => throw new NotImplementedException();
