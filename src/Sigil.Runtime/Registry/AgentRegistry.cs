@@ -62,17 +62,47 @@ public sealed class AgentRegistry : IAgentRegistry
     }
 
     public Task<Result> MarkHealthyAsync(AgentId id, CancellationToken ct = default)
-        => throw new NotImplementedException();
+        => TransitionAsync(id, AgentStatus.Healthy, ct);
 
     public Task<Result> MarkDegradedAsync(AgentId id, CancellationToken ct = default)
-        => throw new NotImplementedException();
+        => TransitionAsync(id, AgentStatus.Degraded, ct);
 
     public Task<Result> MarkOfflineAsync(AgentId id, CancellationToken ct = default)
-        => throw new NotImplementedException();
+        => TransitionAsync(id, AgentStatus.Offline, ct);
 
     public Task<Result> BeginDrainingAsync(AgentId id, CancellationToken ct = default)
-        => throw new NotImplementedException();
+        => TransitionAsync(id, AgentStatus.Draining, ct);
 
     public Task<Maybe<AgentRegistration>> SelectByWeightAsync(string skillName, CancellationToken ct = default)
         => throw new NotImplementedException();
+
+    private async Task<Result> TransitionAsync(AgentId id, AgentStatus target, CancellationToken ct)
+    {
+        var maybe = await _store.GetAsync(id, ct);
+        if (maybe.HasNoValue)
+            return Result.Failure(RegistryErrors.AgentNotFound);
+
+        if (!IsLegalTransition(maybe.Value.Status, target))
+            return Result.Failure(RegistryErrors.InvalidStatusTransition);
+
+        return await _store.UpdateStatusAsync(id, target, ct);
+    }
+
+    private static bool IsLegalTransition(AgentStatus from, AgentStatus to) => (from, to) switch
+    {
+        (AgentStatus.Starting, AgentStatus.Healthy)  => true,
+        (AgentStatus.Starting, AgentStatus.Offline)  => true,
+
+        (AgentStatus.Healthy,  AgentStatus.Degraded) => true,
+        (AgentStatus.Healthy,  AgentStatus.Offline)  => true,
+        (AgentStatus.Healthy,  AgentStatus.Draining) => true,
+
+        (AgentStatus.Degraded, AgentStatus.Healthy)  => true,
+        (AgentStatus.Degraded, AgentStatus.Offline)  => true,
+        (AgentStatus.Degraded, AgentStatus.Draining) => true,
+
+        (AgentStatus.Draining, AgentStatus.Offline)  => true,
+
+        _ => false
+    };
 }
