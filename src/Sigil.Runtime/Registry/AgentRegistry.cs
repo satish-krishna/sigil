@@ -73,8 +73,32 @@ public sealed class AgentRegistry : IAgentRegistry
     public Task<Result> BeginDrainingAsync(AgentId id, CancellationToken ct = default)
         => TransitionAsync(id, AgentStatus.Draining, ct);
 
-    public Task<Maybe<AgentRegistration>> SelectByWeightAsync(string skillName, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async Task<Maybe<AgentRegistration>> SelectByWeightAsync(string skillName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(skillName))
+            throw new ArgumentException(RegistryErrors.SkillNameRequired, nameof(skillName));
+
+        var candidates = (await _store.FindBySkillAsync(skillName, ct))
+            .Where(a => a.Status == AgentStatus.Healthy && a.RoutingWeight > 0)
+            .OrderBy(a => a.AgentId.Value, StringComparer.Ordinal)
+            .ToList();
+
+        if (candidates.Count == 0)
+            return Maybe<AgentRegistration>.None;
+
+        var total = candidates.Sum(c => c.RoutingWeight);
+        var roll = _random.Next(total);
+        var running = 0;
+        foreach (var c in candidates)
+        {
+            running += c.RoutingWeight;
+            if (roll < running)
+                return Maybe.From(c);
+        }
+
+        // Unreachable when total > 0 and roll < total, but the compiler doesn't know.
+        return Maybe.From(candidates[^1]);
+    }
 
     private async Task<Result> TransitionAsync(AgentId id, AgentStatus target, CancellationToken ct)
     {
