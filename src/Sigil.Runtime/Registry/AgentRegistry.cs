@@ -21,7 +21,13 @@ public sealed class AgentRegistry : IAgentRegistry
     }
 
     public Task<Result> RegisterAsync(AgentRegistration registration, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    {
+        if (registration.RoutingWeight < 0 || registration.RoutingWeight > 100)
+            return Task.FromResult(Result.Failure(RegistryErrors.InvalidRoutingWeight));
+
+        var normalized = registration with { Status = AgentStatus.Starting };
+        return _store.RegisterAsync(normalized, ct);
+    }
 
     public Task<Maybe<AgentRegistration>> GetAsync(AgentId id, CancellationToken ct = default)
         => _store.GetAsync(id, ct);
