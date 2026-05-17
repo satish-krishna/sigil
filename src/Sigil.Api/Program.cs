@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSigilSecurity(builder.Configuration);
 builder.Services.AddSigilEfCore(builder.Configuration);
 builder.Services.AddSigilRuntime();
-builder.Services.AddFastEndpoints();
+builder.Services.AddFastEndpoints(o => o.Assemblies = [typeof(Program).Assembly]);
 
 var app = builder.Build();
 app.UseMiddleware<SigilAuthMiddleware>();
