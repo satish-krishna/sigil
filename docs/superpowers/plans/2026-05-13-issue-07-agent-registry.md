@@ -1207,7 +1207,7 @@ Expected: Build succeeded, 0 errors, 0 warnings.
 Run: `dotnet test sigil.sln`
 Expected: All tests pass. New test counts:
 - `Sigil.Core.Tests` includes 1 new `RegistryErrorsTests`.
-- `Sigil.Runtime.Tests` reports ~38 tests across registration (4) + heartbeat (6) + transitions (20) + weighted selection (7) + 1 not-found.
+- `Sigil.Runtime.Tests` reports 42 tests across registration (3) + heartbeat (6) + transitions (21) + weighted selection (7) + DI (5).
 
 - [ ] **Step 3: No commit** — verification only.
 

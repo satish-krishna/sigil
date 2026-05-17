@@ -88,6 +88,7 @@ public interface IAgentRegistry
 | `AgentNotFound` | `"agent-not-found"` | `Get`/transition on unknown `AgentId` |
 | `InvalidStatusTransition` | `"invalid-status-transition"` | Transition not allowed by matrix below |
 | `InvalidRoutingWeight` | `"invalid-routing-weight"` | `RegisterAsync` with `RoutingWeight < 0` or `> 100` |
+| `SkillNameRequired` | `"skill-name-required"` | `SelectByWeightAsync` with null/whitespace `skillName` — surfaces as `ArgumentException` (programmer error), constant used as the exception message |
 
 ## 5. Status transition matrix
 
@@ -134,7 +135,7 @@ The deterministic order makes tests reproducible. Weight `0` is the documented o
 
 ## 7. Tests
 
-### `tests/Sigil.Runtime.Tests/Registry/AgentRegistryTests.cs`
+Tests live under `tests/Sigil.Runtime.Tests/Registry/` split by concern: `AgentRegistryRegistrationTests`, `AgentRegistryHeartbeatTests`, `AgentRegistryTransitionTests`, `AgentRegistryWeightedSelectionTests`, plus the `FakeAgentRegistrationStore`, `StubRandomProvider`, and `TestAgents` fixtures.
 
 A minimal in-memory `FakeAgentRegistrationStore` (added in the same test project) backs all tests. No mocking framework.
 
