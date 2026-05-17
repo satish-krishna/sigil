@@ -52,7 +52,7 @@ public sealed class SigilAuthMiddlewareTests : IClassFixture<SigilApiFactory>
         (await res.Content.ReadAsStringAsync()).ShouldContain("\"key-mismatch\"");
     }
 
-    [Fact(Skip = "Endpoint registered in Task 15 — re-enable after.")]
+    [Fact]
     public async Task ValidHeaders_ReachesEndpoint()
     {
         var client = _factory.CreateAuthedClient(TestKeys.AgentA, TestKeys.AgentAKey);
