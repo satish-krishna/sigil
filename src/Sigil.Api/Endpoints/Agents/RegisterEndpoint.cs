@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FastEndpoints;
 using Sigil.Api.Security;
 using Sigil.Core.Registry;
@@ -45,6 +46,7 @@ public sealed class RegisterEndpoint : Endpoint<AgentRegistration, AgentRegistra
     private async Task SendErrorAsync(int status, string code, CancellationToken ct)
     {
         HttpContext.Response.StatusCode = status;
-        await HttpContext.Response.WriteAsJsonAsync(new { error = code }, ct);
+        HttpContext.Response.ContentType = "application/json";
+        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(new { error = code }), ct);
     }
 }
