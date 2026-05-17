@@ -43,4 +43,9 @@
   <ItemGroup>
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
   </ItemGroup>
+
+  <!-- Test-only — ASP.NET Core integration testing -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+  </ItemGroup>
 </Project>
