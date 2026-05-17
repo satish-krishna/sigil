@@ -45,11 +45,11 @@ FastEndpoints
 **File:** `src/Sigil.Api/Security/SigilAuthMiddleware.cs`
 
 - Reads `X-Sigil-Agent-Id` and `X-Sigil-Key` from the request. Both required.
-- Parses the agent id via `AgentId.Parse` (failure → `401 invalid_agent_id`).
+- Parses the agent id via `AgentId.Parse` (failure → `401 invalid-agent-id`).
 - Builds `SigilCredentials { AgentId, SigilKey }` and calls `ISigilSecurity.AuthenticateAsync(creds, SecurityTier.Open)`.
 - On success: stores the returned `AuthenticationResult` at `HttpContext.Items["sigil.auth"]` and calls `next`.
 - On failure: returns HTTP `401` with JSON body `{ "error": "<code>" }` where `<code>` is the `SigilSecurityErrors.*` constant (e.g. `unknown_agent`, `key_mismatch`, `missing_key`).
-- Missing headers → `401` with `{ "error": "missing_credentials" }`.
+- Missing headers → `401` with `{ "error": "missing-credentials" }`.
 - Wired in `Program.cs` *before* `app.UseFastEndpoints()`.
 
 The middleware is the single auth gate; endpoints do not call `ISigilSecurity` directly.
@@ -62,7 +62,7 @@ All endpoints serialize via FastEndpoints' default System.Text.Json configuratio
 
 - **File:** `src/Sigil.Api/Endpoints/Agents/RegisterEndpoint.cs`
 - **Request:** full `AgentRegistration` JSON. Server-managed fields (`Status`, `RegisteredAt`, `LastHeartbeat`) are ignored if present.
-- **Caller assertion:** `HttpContext.Items["sigil.auth"].AgentId` must equal request body's `AgentId` → else `403 caller_agent_mismatch`.
+- **Caller assertion:** `HttpContext.Items["sigil.auth"].AgentId` must equal request body's `AgentId` → else `403 caller-agent-mismatch`.
 - Calls `IAgentRegistry.RegisterAsync(registration)`.
 - **Responses:**
   - `201 Created` with the persisted `AgentRegistration` in the body.
@@ -72,7 +72,7 @@ All endpoints serialize via FastEndpoints' default System.Text.Json configuratio
 ### `POST /api/agents/{id}/deregister`
 
 - **File:** `src/Sigil.Api/Endpoints/Agents/DeregisterEndpoint.cs`
-- **Route id assertion:** `{id}` must equal the authenticated `AgentId` → else `403 caller_agent_mismatch`.
+- **Route id assertion:** `{id}` must equal the authenticated `AgentId` → else `403 caller-agent-mismatch`.
 - Calls `IAgentRegistry.MarkOfflineAsync(id)`.
 - **Responses:**
   - `204 No Content` on success.
@@ -91,7 +91,7 @@ All endpoints serialize via FastEndpoints' default System.Text.Json configuratio
 ### `GET /api/agents`
 
 - **File:** `src/Sigil.Api/Endpoints/Agents/ListAgentsEndpoint.cs`
-- **Query:** optional `?skill=<name>` or `?domain=<name>` (mutually exclusive; if both present → `400 conflicting_filters`).
+- **Query:** optional `?skill=<name>` or `?domain=<name>` (mutually exclusive; if both present → `400 conflicting-filters`).
 - Calls `GetAllAsync` / `FindBySkillAsync` / `FindByDomainAsync` accordingly.
 - **Response:** `200 OK` with `AgentRegistration[]`. No auth-id assertion — any authenticated caller may list.
 
@@ -103,14 +103,14 @@ All endpoints serialize via FastEndpoints' default System.Text.Json configuratio
   public sealed record SubmitIntentRequest
   {
       public required string SkillName { get; init; }
-      public required JsonElement Input { get; init; }
+      public required string Input { get; init; }
       public ContextSnapshot? Snapshot { get; init; }
   }
   ```
 - Translates the DTO to `IntentRequest` and calls `IIntentDispatcher.DispatchAsync(req)`.
 - **Responses:**
   - `200 OK` with `AgentExecutionResult` in the body.
-  - `404 Not Found` `{ "error": "no_agent_for_skill" }`.
+  - `404 Not Found` `{ "error": "no-agent-for-skill" }`.
   - `400 Bad Request` `{ "error": "<validation reason>" }` when the agent's `/sigil/validate` rejects.
   - `502 Bad Gateway` `{ "error": "<SigilGatewayErrors.*>" }` for gateway failures (transport, 5xx, signature).
 
@@ -119,7 +119,6 @@ All endpoints serialize via FastEndpoints' default System.Text.Json configuratio
 **File:** `src/Sigil.Core/Intents/IIntentDispatcher.cs`
 
 ```csharp
-using System.Text.Json;
 using CSharpFunctionalExtensions;
 using Sigil.Core.Protocol;
 
@@ -135,14 +134,14 @@ public interface IIntentDispatcher
 public sealed record IntentRequest
 {
     public required string SkillName { get; init; }
-    public required JsonElement Input { get; init; }
+    public required string Input { get; init; }
     public ContextSnapshot? Snapshot { get; init; }
 }
 ```
 
 **Error codes** (new `src/Sigil.Core/Intents/IntentErrors.cs`):
-- `no_agent_for_skill` — registry's weighted selection returned `Maybe.None`.
-- `validation_rejected` — fallback when the validation result has no `Reason`.
+- `no-agent-for-skill` — registry's weighted selection returned `Maybe.None`.
+- `validation-rejected` — fallback when the validation result has no `Reason`.
 
 ## `SimpleIntentDispatcher`
 
@@ -159,30 +158,30 @@ public async Task<Result<AgentExecutionResult>> DispatchAsync(
         return Result.Failure<AgentExecutionResult>(IntentErrors.NoAgentForSkill);
 
     var agent = agentMaybe.Value;
-    var snapshot = req.Snapshot ?? ContextSnapshot.Empty;
-
-    var valReq = new ValidationRequest
+    var task = new AgentTask
     {
+        JobId = new JobId(Guid.NewGuid().ToString()),
         SkillName = req.SkillName,
-        Snapshot = snapshot,
-        RequestedTokenBudget = agent.MaxTokenBudget ?? 0
+        Input = req.Input,
+        AvailableTools = agent.Tools.Select(t => t.Name).ToList()
     };
+    var snapshot = req.Snapshot ?? new ContextSnapshot { JobId = task.JobId };
+    var valReq = new ValidationRequest { Task = task, AvailableTokenBudget = agent.MaxTokenBudget ?? 0 };
 
     var valRes = await _gateway.ValidateAsync(agent, valReq, ct);
     if (valRes.IsFailure)
         return Result.Failure<AgentExecutionResult>(valRes.Error);
 
-    if (!valRes.Value.Accepted)
+    if (!valRes.Value.CanHandle)
         return Result.Failure<AgentExecutionResult>(
             valRes.Value.Reason ?? IntentErrors.ValidationRejected);
 
-    var task = new AgentTask
+    var package = new AgentExecutionPackage
     {
-        Id = JobId.New(),
-        SkillName = req.SkillName,
-        Input = req.Input
+        Task = task,
+        Snapshot = snapshot,
+        ExpectedETag = new ETag("")
     };
-    var package = new AgentExecutionPackage { Task = task, Snapshot = snapshot };
 
     return await _gateway.ExecuteAsync(agent, package, ct);
 }
@@ -208,7 +207,7 @@ using Sigil.Storage.EfCore.DependencyInjection;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSigilSecurity(builder.Configuration);
-builder.Services.AddSigilEfCoreStorage(builder.Configuration); // already exists from #6
+builder.Services.AddSigilEfCore(builder.Configuration); // already exists from #6
 builder.Services.AddSigilRuntime();
 builder.Services.AddFastEndpoints();
 
@@ -227,28 +226,28 @@ public partial class Program; // for WebApplicationFactory<Program>
 ### `tests/Sigil.Runtime.Tests/Intents/SimpleIntentDispatcherTests.cs` (unit)
 
 Fakes for `IAgentRegistry` and `IAgentGateway`. Cases:
-- `NoAgentForSkill_ReturnsFailure` — registry returns `Maybe.None` → `no_agent_for_skill`.
+- `NoAgentForSkill_ReturnsFailure` — registry returns `Maybe.None` → `no-agent-for-skill`.
 - `GatewayValidateFailure_PropagatesError` — gateway returns failure → same error code returned.
-- `ValidationRejected_WithReason_ReturnsReason` — accepted=false, reason="too_many_tokens" → failure with that code.
-- `ValidationRejected_NoReason_ReturnsFallback` — accepted=false, reason=null → `validation_rejected`.
+- `ValidationRejected_WithReason_ReturnsReason` — canHandle=false, reason="too_many_tokens" → failure with that code.
+- `ValidationRejected_NoReason_ReturnsFallback` — canHandle=false, reason=null → `validation-rejected`.
 - `HappyPath_CallsExecuteWithSelectedAgent` — verifies dispatcher passes the agent returned by `SelectByWeightAsync` to `ExecuteAsync` and returns the gateway's result.
 
 ### `tests/Sigil.Api.Tests/` (new project, integration)
 
-Uses `WebApplicationFactory<Program>` with an in-memory `IAgentRegistrationStore` fake and a stub `IAgentGateway`. The project targets the same `net9.0` TFM and references `Microsoft.AspNetCore.Mvc.Testing`, `xunit`, `FluentAssertions`, `NSubstitute` (matching the existing test projects — verified in the plan step).
+Uses `WebApplicationFactory<Program>` with an in-memory `IAgentRegistrationStore` fake and a stub `IAgentGateway`. The project targets the same `net9.0` TFM and references `Microsoft.AspNetCore.Mvc.Testing` (to be added to `Directory.Packages.props`), `xunit`, `Shouldly` + hand-rolled fakes (matching the existing test projects — verified in the plan step).
 
 Auth middleware suite (`Security/SigilAuthMiddlewareTests.cs`):
-- Missing both headers → `401 missing_credentials`.
-- Missing key only → `401 missing_credentials`.
+- Missing both headers → `401 missing-credentials`.
+- Missing key only → `401 missing-credentials`.
 - Unknown agent id → `401 unknown_agent`.
 - Wrong key → `401 key_mismatch`.
 - Malformed agent id → `401 invalid_agent_id`.
 - Valid headers → request reaches endpoint (verified via list endpoint returning 200).
 
 Per-endpoint suites (one file each under `Endpoints/Agents/` and `Endpoints/Intents/`):
-- `RegisterEndpointTests` — happy 201, duplicate 409, caller-mismatch 403, validation failure 400.
-- `DeregisterEndpointTests` — happy 204, unknown 404, caller-mismatch 403.
-- `HeartbeatEndpointTests` — happy 204, unknown 404, offline 409, caller-mismatch 403.
+- `RegisterEndpointTests` — happy 201, duplicate 409, caller-agent-mismatch 403, validation failure 400.
+- `DeregisterEndpointTests` — happy 204, unknown 404, caller-agent-mismatch 403.
+- `HeartbeatEndpointTests` — happy 204, unknown 404, offline 409, caller-agent-mismatch 403.
 - `ListAgentsEndpointTests` — empty 200, populated 200, `?skill=` filter, `?domain=` filter, both → 400.
 - `SubmitIntentEndpointTests` — happy 200, no-agent 404, validation-rejects 400, gateway-fails 502.
 
