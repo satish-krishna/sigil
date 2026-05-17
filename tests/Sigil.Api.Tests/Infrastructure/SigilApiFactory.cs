@@ -33,8 +33,8 @@ public sealed class SigilApiFactory : WebApplicationFactory<Program>
             services.RemoveAll(typeof(IAgentRegistrationStore));
             services.AddSingleton<IAgentRegistrationStore>(Store);
 
-            // IAgentGateway is not yet registered in Program.cs (AddAgentGateway is not called);
-            // RemoveAll is a no-op here and AddSingleton is the first registration.
+            // IAgentGateway is registered in Program.cs via AddAgentGateway; RemoveAll
+            // replaces the production registration with the test stub.
             services.RemoveAll(typeof(IAgentGateway));
             services.AddSingleton<IAgentGateway>(Gateway);
         });
