@@ -36,6 +36,7 @@ public class AgentRegistryTransitionTests
         new object[] { AgentStatus.Offline,   AgentStatus.Healthy },
         new object[] { AgentStatus.Offline,   AgentStatus.Degraded },
         new object[] { AgentStatus.Offline,   AgentStatus.Draining },
+        new object[] { AgentStatus.Offline,   AgentStatus.Offline },
         new object[] { AgentStatus.Draining,  AgentStatus.Healthy },
         new object[] { AgentStatus.Draining,  AgentStatus.Degraded },
         new object[] { AgentStatus.Draining,  AgentStatus.Draining },

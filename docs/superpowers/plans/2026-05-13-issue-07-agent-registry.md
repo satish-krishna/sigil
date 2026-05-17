@@ -963,7 +963,7 @@ private static bool IsLegalTransition(AgentStatus from, AgentStatus to) => (from
 - [ ] **Step 4: Run tests — expect pass**
 
 Run: `dotnet test tests/Sigil.Runtime.Tests/Sigil.Runtime.Tests.csproj --filter FullyQualifiedName~AgentRegistryTransitionTests`
-Expected: 20 passed (9 legal + 10 illegal + 1 not-found).
+Expected: 21 passed (9 legal + 11 illegal + 1 not-found).
 
 - [ ] **Step 5: Commit**
 
