@@ -1,5 +1,5 @@
-using System.Text.Json;
 using FastEndpoints;
+using Sigil.Api.Security;
 using Sigil.Core.Intents;
 using Sigil.Core.Protocol;
 
@@ -47,8 +47,6 @@ public sealed class SubmitIntentEndpoint : Endpoint<SubmitIntentRequest, AgentEx
             _ => StatusCodes.Status400BadRequest,
         };
 
-        HttpContext.Response.StatusCode = status;
-        HttpContext.Response.ContentType = "application/json";
-        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(new { error = result.Error }), ct);
+        await HttpContext.WriteSigilErrorAsync(status, result.Error, ct);
     }
 }

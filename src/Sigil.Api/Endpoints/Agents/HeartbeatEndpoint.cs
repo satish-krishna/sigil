@@ -23,8 +23,7 @@ public sealed class HeartbeatEndpoint : EndpointWithoutRequest
         var target = new AgentId(id);
         if (caller != target)
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await HttpContext.Response.WriteAsJsonAsync(new { error = "caller-agent-mismatch" }, ct);
+            await HttpContext.WriteSigilErrorAsync(StatusCodes.Status403Forbidden, "caller-agent-mismatch", ct);
             return;
         }
 
@@ -37,8 +36,7 @@ public sealed class HeartbeatEndpoint : EndpointWithoutRequest
                 RegistryErrors.InvalidStatusTransition => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status500InternalServerError,
             };
-            HttpContext.Response.StatusCode = status;
-            await HttpContext.Response.WriteAsJsonAsync(new { error = result.Error }, ct);
+            await HttpContext.WriteSigilErrorAsync(status, result.Error, ct);
             return;
         }
 

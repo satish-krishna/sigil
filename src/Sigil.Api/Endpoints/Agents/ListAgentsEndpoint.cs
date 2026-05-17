@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Sigil.Api.Security;
 using Sigil.Core.Registry;
 
 namespace Sigil.Api.Endpoints.Agents;
@@ -24,8 +25,7 @@ public sealed class ListAgentsEndpoint : Endpoint<ListAgentsRequest, IReadOnlyLi
     {
         if (!string.IsNullOrWhiteSpace(req.Skill) && !string.IsNullOrWhiteSpace(req.Domain))
         {
-            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await HttpContext.Response.WriteAsJsonAsync(new { error = "conflicting-filters" }, ct);
+            await HttpContext.WriteSigilErrorAsync(StatusCodes.Status400BadRequest, "conflicting-filters", ct);
             return;
         }
 

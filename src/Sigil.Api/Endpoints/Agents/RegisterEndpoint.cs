@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FastEndpoints;
 using Sigil.Api.Security;
 using Sigil.Core.Registry;
@@ -21,7 +20,7 @@ public sealed class RegisterEndpoint : Endpoint<AgentRegistration, AgentRegistra
         var caller = HttpContext.GetAuthenticatedAgentId();
         if (caller != req.AgentId)
         {
-            await SendErrorAsync(StatusCodes.Status403Forbidden, "caller-agent-mismatch", ct);
+            await HttpContext.WriteSigilErrorAsync(StatusCodes.Status403Forbidden, "caller-agent-mismatch", ct);
             return;
         }
 
@@ -35,18 +34,11 @@ public sealed class RegisterEndpoint : Endpoint<AgentRegistration, AgentRegistra
                 "duplicate-agent" => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status500InternalServerError,
             };
-            await SendErrorAsync(status, result.Error, ct);
+            await HttpContext.WriteSigilErrorAsync(status, result.Error, ct);
             return;
         }
 
-        var stored = await _registry.GetAsync(req.AgentId, ct);
-        await HttpContext.Response.SendAsync(stored.Value, StatusCodes.Status201Created, cancellation: ct);
-    }
-
-    private async Task SendErrorAsync(int status, string code, CancellationToken ct)
-    {
-        HttpContext.Response.StatusCode = status;
-        HttpContext.Response.ContentType = "application/json";
-        await HttpContext.Response.WriteAsync(JsonSerializer.Serialize(new { error = code }), ct);
+        var response = req with { Status = AgentStatus.Starting };
+        await HttpContext.Response.SendAsync(response, StatusCodes.Status201Created, cancellation: ct);
     }
 }

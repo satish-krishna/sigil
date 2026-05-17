@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Sigil.Core.Identity;
 using Sigil.Core.Security;
 
@@ -23,13 +22,13 @@ public sealed class SigilAuthMiddleware
 
         if (string.IsNullOrWhiteSpace(agentIdHeader) || string.IsNullOrWhiteSpace(keyHeader))
         {
-            await WriteError(ctx, StatusCodes.Status401Unauthorized, ErrorMissingCredentials);
+            await ctx.WriteSigilErrorAsync(StatusCodes.Status401Unauthorized, ErrorMissingCredentials);
             return;
         }
 
         if (agentIdHeader.Length > 256)
         {
-            await WriteError(ctx, StatusCodes.Status401Unauthorized, ErrorInvalidAgentId);
+            await ctx.WriteSigilErrorAsync(StatusCodes.Status401Unauthorized, ErrorInvalidAgentId);
             return;
         }
 
@@ -42,18 +41,11 @@ public sealed class SigilAuthMiddleware
         var auth = await security.AuthenticateAsync(credentials, SecurityTier.Open, ctx.RequestAborted);
         if (auth.IsFailure)
         {
-            await WriteError(ctx, StatusCodes.Status401Unauthorized, auth.Error);
+            await ctx.WriteSigilErrorAsync(StatusCodes.Status401Unauthorized, auth.Error);
             return;
         }
 
         ctx.Items[AuthContextItemKey] = auth.Value;
         await _next(ctx);
-    }
-
-    private static async Task WriteError(HttpContext ctx, int statusCode, string code)
-    {
-        ctx.Response.StatusCode = statusCode;
-        ctx.Response.ContentType = "application/json";
-        await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = code }));
     }
 }
