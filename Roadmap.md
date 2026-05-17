@@ -53,7 +53,7 @@ Phases beyond v1 (planner, policy engine, observability, JWT/mTLS) are tracked s
 
 | Status | Issue | Title | Depends on |
 |---|---|---|---|
-| 🔄 | [#7](https://github.com/satish-krishna/sigil/issues/7) | Secure Agent Registry with weighted routing | #2, #4 |
+| ✅ | [#7](https://github.com/satish-krishna/sigil/issues/7) | Secure Agent Registry with weighted routing | #2, #4 |
 | ✅ | [#10](https://github.com/satish-krishna/sigil/issues/10) | Secure Gateway (JWT-signed dispatch + Polly) | #3, #4 |
 | ⬜ | [#13](https://github.com/satish-krishna/sigil/issues/13) | FastEndpoints — agent lifecycle + intent | #7, #10 |
 | ⬜ | [#11](https://github.com/satish-krishna/sigil/issues/11) | Agent Health Monitor | #7, #10 |
