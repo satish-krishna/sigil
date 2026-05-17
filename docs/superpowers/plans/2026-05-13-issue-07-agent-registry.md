@@ -641,17 +641,6 @@ public class AgentRegistryRegistrationTests
         store.Snapshot.ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task Register_overwrites_offline_agent_back_to_Starting()
-    {
-        var registry = NewRegistry(out var store);
-        await store.RegisterAsync(TestAgents.Make("alpha", status: AgentStatus.Offline));
-
-        var result = await registry.RegisterAsync(TestAgents.Make("alpha"));
-
-        result.IsSuccess.ShouldBeTrue();
-        store.Snapshot[new AgentId("alpha")].Status.ShouldBe(AgentStatus.Starting);
-    }
 }
 ```
 
@@ -678,7 +667,7 @@ public Task<Result> RegisterAsync(AgentRegistration registration, CancellationTo
 - [ ] **Step 4: Run tests — expect pass**
 
 Run: `dotnet test tests/Sigil.Runtime.Tests/Sigil.Runtime.Tests.csproj --filter FullyQualifiedName~AgentRegistryRegistrationTests`
-Expected: 4 passed.
+Expected: 3 passed.
 
 - [ ] **Step 5: Commit**
 

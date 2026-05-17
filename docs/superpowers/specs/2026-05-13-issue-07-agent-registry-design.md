@@ -40,6 +40,7 @@ The store stays a dumb persistence boundary; the registry owns the business rule
 - **HTTP endpoints** — `POST /api/agents/register`, heartbeat, deregister, list, intent all live in #13.
 - **JWT issuance, tier dispatch, mTLS** — Phase 3.
 - **Multi-replica caching** — Phase 1 is single-replica.
+- **Recycle of `Offline` agents via re-registration** — production `IAgentRegistrationStore` rejects duplicate `AgentId`. Until a recycle path is added (likely with #11's stale-cleanup), an `Offline` agent must be physically removed before its ID can be re-used.
 
 ## 3. Design decisions
 
@@ -100,7 +101,7 @@ Registry enforces only these transitions. All others return `Result.Failure(Regi
 | Offline    |   —     |   —      |   —     |   —      |
 | Draining   |   —     |   —      |   ✅    |   —      |
 
-`RegisterAsync` always inserts/updates with `Status = Starting`. Re-registration of an `Offline` agent is permitted (it overwrites the row at `Starting`).
+`RegisterAsync` always inserts/updates with `Status = Starting`.
 
 `HeartbeatAsync` behavior:
 

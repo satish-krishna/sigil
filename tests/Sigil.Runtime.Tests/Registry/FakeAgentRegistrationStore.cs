@@ -17,6 +17,11 @@ internal sealed class FakeAgentRegistrationStore : IAgentRegistrationStore
 
     public Task<Result> RegisterAsync(AgentRegistration registration, CancellationToken ct = default)
     {
+        // Mirror production EfAgentRegistrationStore: reject duplicate AgentId with the
+        // exact same error string ("duplicate-agent") used by Sigil.Storage.EfCore.StorageErrors.DuplicateAgent.
+        // The runtime test project cannot reference the EfCore project, so the literal is duplicated by design.
+        if (_items.ContainsKey(registration.AgentId))
+            return Task.FromResult(Result.Failure("duplicate-agent"));
         _items[registration.AgentId] = registration;
         return Task.FromResult(Result.Success());
     }
