@@ -24,7 +24,16 @@ public sealed class RegisterEndpoint : Endpoint<AgentRegistration, AgentRegistra
             return;
         }
 
-        var result = await _registry.RegisterAsync(req, ct);
+        // Server owns lifecycle fields — overwrite any client-supplied values so they can't be spoofed.
+        var now = DateTime.UtcNow;
+        var normalized = req with
+        {
+            Status = AgentStatus.Starting,
+            RegisteredAt = now,
+            LastHeartbeat = now,
+        };
+
+        var result = await _registry.RegisterAsync(normalized, ct);
         if (result.IsFailure)
         {
             var status = result.Error switch
@@ -38,7 +47,6 @@ public sealed class RegisterEndpoint : Endpoint<AgentRegistration, AgentRegistra
             return;
         }
 
-        var response = req with { Status = AgentStatus.Starting };
-        await HttpContext.Response.SendAsync(response, StatusCodes.Status201Created, cancellation: ct);
+        await HttpContext.Response.SendAsync(normalized, StatusCodes.Status201Created, cancellation: ct);
     }
 }

@@ -59,6 +59,28 @@ public sealed class RegisterEndpointTests
     }
 
     [Fact]
+    public async Task ClientSuppliedTimestamps_AreOverwritten()
+    {
+        using var factory = new SigilApiFactory();
+        var client = factory.CreateAuthedClient(TestKeys.AgentA, TestKeys.AgentAKey);
+        var spoofed = NewRegistration() with
+        {
+            RegisteredAt = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            LastHeartbeat = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Status = AgentStatus.Healthy,
+        };
+        var before = DateTime.UtcNow;
+
+        var res = await client.PostAsJsonAsync("/api/agents/register", spoofed);
+
+        res.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var body = await res.Content.ReadFromJsonAsync<AgentRegistration>();
+        body!.Status.ShouldBe(AgentStatus.Starting);
+        body.RegisteredAt.ShouldBeGreaterThanOrEqualTo(before);
+        body.LastHeartbeat.ShouldBeGreaterThanOrEqualTo(before);
+    }
+
+    [Fact]
     public async Task InvalidRoutingWeight_Returns400()
     {
         using var factory = new SigilApiFactory();

@@ -21,21 +21,31 @@ public sealed class SimpleIntentDispatcher : IIntentDispatcher
     public async Task<Result<AgentExecutionResult>> DispatchAsync(
         IntentRequest request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.SkillName))
+            return Result.Failure<AgentExecutionResult>(IntentErrors.SkillNameRequired);
+
         var agentMaybe = await _registry.SelectByWeightAsync(request.SkillName, ct);
         if (agentMaybe.HasNoValue)
             return Result.Failure<AgentExecutionResult>(IntentErrors.NoAgentForSkill);
 
         var agent = agentMaybe.Value;
 
+        // Prefer a caller-supplied JobId from the snapshot so task/snapshot/context share one identity.
+        var jobId = !string.IsNullOrEmpty(request.Snapshot?.JobId.Value)
+            ? request.Snapshot.JobId
+            : new JobId(Guid.NewGuid().ToString());
+
         var task = new AgentTask
         {
-            JobId = new JobId(Guid.NewGuid().ToString()),
+            JobId = jobId,
             SkillName = request.SkillName,
             Input = request.Input,
             AvailableTools = agent.Tools.Select(t => t.Name).ToList(),
         };
 
-        var snapshot = request.Snapshot ?? new ContextSnapshot { JobId = task.JobId };
+        var snapshot = request.Snapshot is null
+            ? new ContextSnapshot { JobId = jobId }
+            : request.Snapshot with { JobId = jobId };
 
         var valReq = new ValidationRequest
         {

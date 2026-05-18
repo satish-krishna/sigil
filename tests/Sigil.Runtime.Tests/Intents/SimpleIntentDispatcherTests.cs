@@ -35,6 +35,40 @@ public sealed class SimpleIntentDispatcherTests
         return (new SimpleIntentDispatcher(registry, gateway), store, gateway);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task MissingSkillName_ReturnsSkillNameRequired(string? skill)
+    {
+        var (sut, _, gw) = BuildSut();
+
+        var result = await sut.DispatchAsync(new IntentRequest { SkillName = skill!, Input = "hi" });
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBe(IntentErrors.SkillNameRequired);
+        gw.ExecuteCalls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SnapshotJobId_IsPreserved_AndAppliedToTask()
+    {
+        var (sut, store, gw) = BuildSut();
+        await store.RegisterAsync(MakeHealthyAgent());
+        gw.OnExecute = (_, _) => Result.Success(new AgentExecutionResult { Delta = new ContextDelta() });
+
+        var jobId = new JobId("caller-job-1");
+        var snapshot = new ContextSnapshot { JobId = jobId };
+
+        var result = await sut.DispatchAsync(
+            new IntentRequest { SkillName = "echo", Input = "hi", Snapshot = snapshot });
+
+        result.IsSuccess.ShouldBeTrue();
+        var call = gw.ExecuteCalls.ShouldHaveSingleItem();
+        call.Package.Task.JobId.ShouldBe(jobId);
+        call.Package.Snapshot.JobId.ShouldBe(jobId);
+    }
+
     [Fact]
     public async Task NoAgentForSkill_ReturnsFailure()
     {
