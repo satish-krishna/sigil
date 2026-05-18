@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Sigil.Core.Intents;
 using Sigil.Core.Registry;
+using Sigil.Runtime.Intents;
 using Sigil.Runtime.Registry;
 
 namespace Sigil.Runtime.DependencyInjection;
@@ -15,6 +17,7 @@ public static class SigilRuntimeServiceCollectionExtensions
     {
         services.TryAddSingleton<IRandomProvider, SystemRandomProvider>();
         services.AddScoped<IAgentRegistry, AgentRegistry>();
+        services.AddScoped<IIntentDispatcher, SimpleIntentDispatcher>();
         return services;
     }
 }

@@ -6,8 +6,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sigil.Core\Sigil.Core.csproj" />
+    <ProjectReference Include="..\Sigil.Infrastructure\Sigil.Infrastructure.csproj" />
     <ProjectReference Include="..\Sigil.Runtime\Sigil.Runtime.csproj" />
-    <ProjectReference Include="..\Sigil.Storage.Mongo\Sigil.Storage.Mongo.csproj" />
     <ProjectReference Include="..\Sigil.Storage.EfCore\Sigil.Storage.EfCore.csproj" />
   </ItemGroup>
 
